@@ -1,12 +1,11 @@
-import sys
 from abc import ABC
 from argparse import ArgumentParser
-from dataclasses import dataclass
 from enum import Enum
 from typing import Type, Sequence, Text, NoReturn, TypeVar
 
 import attr
 import pytest
+from dataclasses import dataclass
 from pytest import raises
 
 from datargs.compat import DataClass, RecordClass
@@ -163,6 +162,21 @@ def test_enum(factory):
     assert args.arg == TestEnum.a
     args = parse_from_class(TestEnumOptional, [])
     assert args.arg == TestEnum.b
+
+
+def test_kwargs(factory):
+    @factory(order=True)
+    class Order:
+        arg: int
+
+    assert Order(0) < Order(1)
+
+    @factory(order=False)
+    class NoOrder:
+        arg: int
+
+    with raises(TypeError):
+        assert NoOrder(0) < NoOrder(1)
 
 
 def _test_required(cls):

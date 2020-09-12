@@ -1,17 +1,22 @@
-from datargs.make import argsclass, arg, parse_to_class, make_parser
+from datargs.make import argsclass, arg, parse, make_parser
+from tests.test_parser import ParserTest
 
 
 def test_help():
     parser_help = "Program documentation"
     program = "My prog"
+    parser = ParserTest(description=parser_help, prog=program)
+    help_string = parser.format_help()
+    assert parser_help in help_string
+    assert program in help_string
 
-    @argsclass(description=parser_help, parser_params=dict(prog=program))
+    @argsclass
     class Args:
         flag: bool = arg(help="helpful message")
 
-    args = parse_to_class(Args, [])
+    args = parse(Args, [])
     assert not args.flag
-    parser = make_parser(Args)
+    parser = make_parser(Args, parser)
     help_string = parser.format_help()
     assert "helpful message" in help_string
     assert parser_help in help_string
@@ -23,7 +28,7 @@ def test_decorator_no_args():
     class Args:
         flag: bool = arg(help="helpful message")
 
-    assert not parse_to_class(Args, []).flag
+    assert not parse(Args, []).flag
 
 
 def test_decorator_with_args():
@@ -31,7 +36,7 @@ def test_decorator_with_args():
     class Args:
         flag: bool = arg(help="helpful message")
 
-    assert not parse_to_class(Args, []).flag
+    assert not parse(Args, []).flag
 
 
 def test_default():
@@ -47,5 +52,5 @@ def test_alias():
     class Args:
         num: int = arg(aliases=["-n"])
 
-    args = parse_to_class(Args, ["-n", "0"])
+    args = parse(Args, ["-n", "0"])
     assert args.num == 0

@@ -8,7 +8,7 @@ Declerative, type safe `argparse` parsers.
 ...     num: int
 ...     store_true: bool = False
 ...     store_false: bool = True
->>> args = parse_to_class(Args, ["--just-a-string", "STRING", "--num", "0", "--store-true", "--store-false"])
+>>> args = parse(Args, ["--just-a-string", "STRING", "--num", "0", "--store-true", "--store-false"])
 >>> args
 Args(just_a_string='STRING', num=0, store_true=True, store_false=False)
 
@@ -21,7 +21,7 @@ A flag with no defaults is assumed to be False by default:
 >>> @dataclass
 ... class Args:
 ...     no_default: bool
->>> parse_to_class(Args, [])
+>>> parse(Args, [])
 Args(no_default=False)
 
 Enums are supported. They should be specified by name on the command line:
@@ -31,17 +31,18 @@ Enums are supported. They should be specified by name on the command line:
 >>> @dataclass
 ... class Args:
 ...     food: FoodEnum
->>> parse_to_class(Args, ["--food", "kimchi"])
+>>> parse(Args, ["--food", "kimchi"])
 Args(food=<FoodEnum.kimchi: 1>)
->>> parse_to_class(Args, ["--food", "poutine"]) # doctest: +SKIP
+>>> parse(Args, ["--food", "poutine"]) # doctest: +SKIP
 usage: make.py [-h] --food {gnocchi,kimchi}
-make.py: error: argument --food: 'poutine' is not a member of FoodEnum
+make.py: error: argument --food: 'poutine': invalid value
 ...
 SystemExit: 2
 
 Specifying enums by name is not currently supported.
 """
 import dataclasses
+
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import (
     ArgumentParser,
@@ -145,18 +146,18 @@ def bool_arg(name: str, field: RecordField):
 
 @TypeDispatch.register(Enum)
 def enum_arg(name: str, field: RecordField):
-    def type_func(value: str):
+    def enum_type_func(value: str):
         result = field.type.__members__.get(value)
         if not result:
             raise ArgumentTypeError(
-                f"{value!r} is not a member of {field.type.__name__}"
+                f"invalid choice: {value!r} (choose from {[e.name for e in field.type]})"
             )
         return result
 
     return add_default(
         name,
         field,
-        type=type_func,
+        type=enum_type_func,
         choices=field.type,
         metavar=f"{{{','.join(field.type.__members__)}}}",
     )
@@ -170,7 +171,7 @@ def make_parser(cls: type, parser: ParserType = None) -> ParserType:
     """
     Create parser that parses command-line arguments according to the fields of `cls`.
     Use this if you want to do anything with the parser other than immediately parsing the command-line arguments.
-    If you do want to parse immediately, use `parse_to_class`.
+    If you do want to parse immediately, use `parse()`.
     :param cls: class according to which argument parser is created
     :param parser: parser to add arguments to, by default creates a new parser
     :return: instance of `parser_cls` which parses command line according to `cls`
@@ -178,7 +179,7 @@ def make_parser(cls: type, parser: ParserType = None) -> ParserType:
     >>> @dataclass
     ... class Args:
     ...     first_arg: int
-    >>> parse_to_class(Args, ["--first-arg", "0"])
+    >>> parse(Args, ["--first-arg", "0"])
     Args(first_arg=0)
     >>> parser = make_parser(Args)
     >>> parser.add_argument("--second-arg", type=float) # doctest: +ELLIPSIS
@@ -187,23 +188,19 @@ def make_parser(cls: type, parser: ParserType = None) -> ParserType:
     Namespace(first_arg=0, second_arg=1.5)
     """
     record_class = RecordClass.wrap_class(cls)
-    try:
-        # noinspection PyUnresolvedReferences
-        parser_params: dict = cls.__parser_params__
-    except AttributeError:
-        parser_params = {}
-    parser = parser or ArgumentParser(**parser_params)
+    parser = parser or ArgumentParser()
     for name, field in record_class.fields_dict().items():
         # noinspection PyProtectedMember
         parser._add_action(TypeDispatch.add_arg(field))
     return parser
 
 
-def parse_to_class(cls: Type[T], args: Optional[Sequence[str]] = None) -> T:
+def parse(cls: Type[T], args: Optional[Sequence[str]] = None, *, parser=None) -> T:
     """
     Parse command line arguments according to the fields of `cls` and populate it.
     Accepts classes decorated with `dataclass`, `attr.s` or `argsclass`.
     :param cls: class to parse command-line arguments by
+    :param parser: existing parser to add arguments to and parse from
     :param args: arguments to parse (default: `sys.arg`)
     :return: an instance of cls
 
@@ -211,10 +208,10 @@ def parse_to_class(cls: Type[T], args: Optional[Sequence[str]] = None) -> T:
     ... class Args:
     ...     is_flag: bool
     ...     num: int = 0
-    >>> parse_to_class(Args, ["--num", "1"])
+    >>> parse(Args, ["--num", "1"])
     Args(is_flag=False, num=1)
     """
-    return cls(**vars(make_parser(cls).parse_args(args)))
+    return cls(**vars(make_parser(cls, parser=parser).parse_args(args)))
 
 
 # noinspection PyShadowingBuiltins
@@ -234,9 +231,9 @@ def arg(
     >>> @argsclass
     ... class Args:
     ...     num: int = arg(aliases=["-n"])
-    >>> parse_to_class(Args, ["--num", "0"])
+    >>> parse(Args, ["--num", "0"])
     Args(num=0)
-    >>> parse_to_class(Args, ["-n", "0"])
+    >>> parse(Args, ["-n", "0"])
     Args(num=0)
 
     Accepts all arguments to both `ArgumentParser.add_argument` and `dataclass.field`:
@@ -265,8 +262,6 @@ def arg(
 
 def argsclass(
     maybe_cls: type = None,
-    description: str = None,
-    parser_params: dict = None,
     **kwargs,
 ):
     """
@@ -297,32 +292,20 @@ def argsclass(
     ...     flag: bool
     >>> print(Args(True)) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     <...Args object at 0x...>
-
-    `argclass` accepts a `description` parameter for `ArgumentParser`.
-    Other `ArgumentParser` parameters can be passed in `parser_params`:
-    >>> @argsclass(description="My program help", parser_params=dict(prog="my-program-string", epilog="My epilog"))
-    ... class Args:
-    ...     flag: bool
-    >>> make_parser(Args).print_help() # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-    usage: my-program-string ...
-    My program help
-    ...
-    My epilog
     """
     if maybe_cls is None:
-        return partial(
-            make_class, description=description, parser_params=parser_params, **kwargs
-        )
+        return partial(make_class, **kwargs)
     return make_class(maybe_cls)
 
 
 def make_class(
     cls: type,
-    description: str = None,
-    parser_params: dict = None,
     **kwargs,
 ):
-    annotations = cls.__annotations__
+    try:
+        annotations = cls.__annotations__
+    except AttributeError:
+        annotations = {}
     optional_fields = {
         name: (name, annotations.get(name), member)
         for name, member in vars(cls).items()
@@ -334,7 +317,7 @@ def make_class(
         if name not in optional_fields
     }
     all_fields = {**required_fields, **optional_fields}
-    new_cls = make_dataclass(
+    return make_dataclass(
         cls.__name__,
         list(all_fields.values()),
         bases=tuple(cls.mro())[1:],
@@ -343,8 +326,6 @@ def make_class(
         },
         **kwargs,
     )
-    new_cls.__parser_params__ = {"description": description, **(parser_params or {})}
-    return new_cls
 
 
 if __name__ == "__main__":
