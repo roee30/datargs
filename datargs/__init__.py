@@ -1,3 +1,3 @@
-from .make import argsclass, arg, make_parser, parse
+from .make import parse, arg, make_parser, argsclass
 
-__all__ = ["argsclass", "arg", "make_parser", "parse"]
+__all__ = ["parse", "arg", "make_parser", "argsclass"]

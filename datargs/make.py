@@ -198,7 +198,7 @@ def make_parser(cls: type, parser: ParserType = None) -> ParserType:
 def parse(cls: Type[T], args: Optional[Sequence[str]] = None, *, parser=None) -> T:
     """
     Parse command line arguments according to the fields of `cls` and populate it.
-    Accepts classes decorated with `dataclass`, `attr.s` or `argsclass`.
+    Accepts classes decorated with `dataclass` or `attr.s`.
     :param cls: class to parse command-line arguments by
     :param parser: existing parser to add arguments to and parse from
     :param args: arguments to parse (default: `sys.arg`)
@@ -212,6 +212,10 @@ def parse(cls: Type[T], args: Optional[Sequence[str]] = None, *, parser=None) ->
     Args(is_flag=False, num=1)
     """
     return cls(**vars(make_parser(cls, parser=parser).parse_args(args)))
+
+
+def argsclass(*args, **kwargs):
+    return dataclass(*args, **kwargs)
 
 
 # noinspection PyShadowingBuiltins
@@ -228,7 +232,7 @@ def arg(
     """
     Helper method to more easily add parsing-related behavior.
     Supports aliases:
-    >>> @argsclass
+    >>> @dataclass
     ... class Args:
     ...     num: int = arg(aliases=["-n"])
     >>> parse(Args, ["--num", "0"])
@@ -237,7 +241,7 @@ def arg(
     Args(num=0)
 
     Accepts all arguments to both `ArgumentParser.add_argument` and `dataclass.field`:
-    >>> @argsclass
+    >>> @dataclass
     ... class Args:
     ...     invisible_arg: int = arg(default=0, repr=False, metavar="MY_ARG", help="argument description")
     >>> print(Args())
@@ -256,74 +260,6 @@ def arg(
             aliases=aliases,
         ),
         default=default,
-        **kwargs,
-    )
-
-
-def argsclass(
-    maybe_cls: type = None,
-    **kwargs,
-):
-    """
-    Decorator for passing `description` and other `ArgumentParser` parameters
-    and for enabling the use of `arg()`.
-    When not using `arg()`, using `dataclass` is prefereable.
-    A paper-thin wrapper around `dataclass` which helps with passing additional arguments to parsers.
-
-    >>> from dataclasses import dataclass, field, fields
-    >>> @argsclass
-    ... class Args:
-    ...     str_arg: str = arg(metavar="ARGUMENT_NAME", help="Flag documentation")
-    >>> make_parser(Args).print_help() # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-    usage: ...
-      --str-arg ARGUMENT_NAME      Flag documentation
-
-    The above is equivalent to:
-    >>> @dataclass
-    ... class Args:
-    ...     str_arg: str = arg(metavar="ARGUMENT_NAME", help="Flag documentation")
-    >>> make_parser(Args).print_help() # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-    usage: ...
-      --str-arg ARGUMENT_NAME      Flag documentation
-
-    `argclass` accepts all arguments to `dataclass`:
-    >>> @argsclass(repr=False)
-    ... class Args:
-    ...     flag: bool
-    >>> print(Args(True)) # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-    <...Args object at 0x...>
-    """
-    if maybe_cls is None:
-        return partial(make_class, **kwargs)
-    return make_class(maybe_cls)
-
-
-def make_class(
-    cls: type,
-    **kwargs,
-):
-    try:
-        annotations = cls.__annotations__
-    except AttributeError:
-        annotations = {}
-    optional_fields = {
-        name: (name, annotations.get(name), member)
-        for name, member in vars(cls).items()
-        if isinstance(member, dataclasses.Field)
-    }
-    required_fields = {
-        name: (name, annotation, dataclasses.field())
-        for name, annotation in annotations.items()
-        if name not in optional_fields
-    }
-    all_fields = {**required_fields, **optional_fields}
-    return make_dataclass(
-        cls.__name__,
-        list(all_fields.values()),
-        bases=tuple(cls.mro())[1:],
-        namespace={
-            key: value for key, value in vars(cls).items() if key not in all_fields
-        },
         **kwargs,
     )
 

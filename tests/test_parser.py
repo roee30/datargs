@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from pytest import raises
 
 from datargs.compat import DataClass, RecordClass
-from datargs.make import make_parser
+from datargs.make import make_parser, argsclass
 
 
-@pytest.fixture(scope="module", params=[attr.dataclass, dataclass])
+@pytest.fixture(scope="module", params=[attr.dataclass, dataclass, argsclass])
 def factory(request):
     return request.param
 
