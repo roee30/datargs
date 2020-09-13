@@ -1,4 +1,4 @@
-# argparse-attrs
+# datargs
 Create type-safe command line argument parsers from attrs and dataclass classes.
 
 ## Usage
