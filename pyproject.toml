@@ -1,9 +1,26 @@
 [tool.poetry]
 name = "datargs"
-version = "0.1.0"
+version = "0.1.1"
 description = "Declerative, type-safe command line argument parsers from dataclasses and attrs classes"
 authors = ["Roee Nizan <roeen30@gmail.com>"]
 license = "MIT"
+homepage = "https://github.com/roee30/datargs"
+repository = "https://github.com/roee30/datargs"
+keywords = ["argparse", "dataclass", "attrs"]
+readme = "README.md"
+include = [
+    "LICENSE"
+]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Typing :: Typed",
+]
 
 [tool.poetry.dependencies]
 python = "^3.6"
