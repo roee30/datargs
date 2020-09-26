@@ -5,10 +5,17 @@ from abc import abstractmethod
 from typing import TypeVar, Generic, Mapping, Type
 
 import dataclasses
+from dataclasses import dataclass
 
 from datargs.meta import AbstractClassProperty
 
 FieldType = TypeVar("FieldType")
+
+
+@dataclass
+class DatargsParams:
+    parser: dict = dataclasses.field(default_factory=dict)
+    sub_commands: dict = dataclasses.field(default_factory=dict)
 
 
 class RecordField(Generic[FieldType]):
@@ -51,6 +58,10 @@ class RecordField(Generic[FieldType]):
     def metadata(self):
         return self.field.metadata
 
+    @property
+    def is_positional(self) -> bool:
+        return self.metadata.get("positional", False)
+
 
 class DataField(RecordField[dataclasses.Field]):
     """
@@ -59,6 +70,10 @@ class DataField(RecordField[dataclasses.Field]):
 
     def is_required(self) -> bool:
         return self.field.default is dataclasses.MISSING
+
+
+class NotARecordClass(Exception):
+    pass
 
 
 class RecordClass(Generic[FieldType]):
@@ -79,7 +94,23 @@ class RecordClass(Generic[FieldType]):
             cls._implementors.append(cls)
 
     def __init__(self, cls):
-        self.cls = cls
+        self.cls: type = cls
+
+    @property
+    def datargs_params(self) -> DatargsParams:
+        return getattr(self.cls, "__datargs_params__", DatargsParams())
+
+    @property
+    def parser_params(self):
+        return self.datargs_params.parser
+
+    @property
+    def sub_commands_params(self):
+        return self.datargs_params.sub_commands
+
+    @property
+    def name(self):
+        return self.cls.__name__
 
     @abstractmethod
     def fields_dict(self) -> Mapping[str, FieldType]:
@@ -96,7 +127,7 @@ class RecordClass(Generic[FieldType]):
         return getattr(potential_record_class, cls.fields_attribute, None) is not None
 
     @classmethod
-    def wrap_class(cls, record_class):
+    def wrap_class(cls, record_class) -> "RecordClass":
         """
         Wrap `record_class` with the appropriate wrapper.
         """
@@ -104,10 +135,10 @@ class RecordClass(Generic[FieldType]):
             if candidate.can_wrap_class(record_class):
                 return candidate(record_class)
         if getattr(record_class, "__attrs_attrs__", None) is not None:
-            raise Exception(
+            raise NotARecordClass(
                 f"can't accept '{record_class.__name__}' because it is an attrs class and attrs is not installed"
             )
-        raise Exception(
+        raise NotARecordClass(
             f"class '{record_class.__name__}' is not a dataclass nor an attrs class"
         )
 

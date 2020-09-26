@@ -1,18 +1,22 @@
 from abc import ABC
 from argparse import ArgumentParser
+from dataclasses import dataclass
 from enum import Enum
 from typing import Type, Sequence, Text, NoReturn, TypeVar
 
 import attr
 import pytest
-from dataclasses import dataclass
 from pytest import raises
 
 from datargs.compat import DataClass, RecordClass
-from datargs.make import make_parser, argsclass
+from datargs.make import argsclass, parse, arg, make_parser
 
 
-@pytest.fixture(scope="module", params=[attr.dataclass, dataclass, argsclass])
+@pytest.fixture(
+    scope="module",
+    params=[attr.dataclass, dataclass, argsclass],
+    ids=["attrs", None, None],
+)
 def factory(request):
     return request.param
 
@@ -48,7 +52,7 @@ def test_invalid_class():
         pass
 
     with pytest.raises(Exception) as exc_info:
-        parse_from_class(NoDataclass, [])
+        parse_test(NoDataclass, [])
     assert "not a dataclass" in exc_info.value.args[0]
 
 
@@ -57,27 +61,27 @@ def test_bool(factory):
     class TestStoreTrue:
         store_true: bool = False
 
-    args = parse_from_class(TestStoreTrue, [])
+    args = parse_test(TestStoreTrue, [])
     assert not args.store_true
-    args = parse_from_class(TestStoreTrue, ["--store-true"])
+    args = parse_test(TestStoreTrue, ["--store-true"])
     assert args.store_true
 
     @factory
     class TestStoreTrueNoDefault:
         store_true: bool
 
-    args = parse_from_class(TestStoreTrueNoDefault, [])
+    args = parse_test(TestStoreTrueNoDefault, [])
     assert not args.store_true
-    args = parse_from_class(TestStoreTrueNoDefault, ["--store-true"])
+    args = parse_test(TestStoreTrueNoDefault, ["--store-true"])
     assert args.store_true
 
     @factory
     class TestStoreFalse:
         store_false: bool = True
 
-    args = parse_from_class(TestStoreFalse, [])
+    args = parse_test(TestStoreFalse, [])
     assert args.store_false
-    args = parse_from_class(TestStoreFalse, ["--store-false"])
+    args = parse_test(TestStoreFalse, ["--store-false"])
     assert not args.store_false
 
 
@@ -88,16 +92,16 @@ def test_str(factory):
 
     _test_required(TestStringRequired)
 
-    args = parse_from_class(TestStringRequired, ["--arg", "test"])
+    args = parse_test(TestStringRequired, ["--arg", "test"])
     assert args.arg == "test"
 
     @factory
     class TestStringOptional:
         arg: str = "default"
 
-    args = parse_from_class(TestStringOptional, [])
+    args = parse_test(TestStringOptional, [])
     assert args.arg == "default"
-    args = parse_from_class(TestStringOptional, ["--arg", "test"])
+    args = parse_test(TestStringOptional, ["--arg", "test"])
     assert args.arg == "test"
 
 
@@ -108,16 +112,16 @@ def test_int(factory):
 
     _test_required(TestIntRequired)
 
-    args = parse_from_class(TestIntRequired, ["--arg", "1"])
+    args = parse_test(TestIntRequired, ["--arg", "1"])
     assert args.arg == 1
 
     @factory
     class TestIntOptional:
         arg: int = 0
 
-    args = parse_from_class(TestIntOptional, [])
+    args = parse_test(TestIntOptional, [])
     assert args.arg == 0
-    args = parse_from_class(TestIntOptional, ["--arg", "1"])
+    args = parse_test(TestIntOptional, ["--arg", "1"])
     assert args.arg == 1
 
 
@@ -128,16 +132,16 @@ def test_float(factory):
 
     _test_required(TestIntRequired)
 
-    args = parse_from_class(TestIntRequired, ["--arg", "1"])
+    args = parse_test(TestIntRequired, ["--arg", "1"])
     assert args.arg == 1
 
     @factory
     class TestIntOptional:
         arg: int = 0
 
-    args = parse_from_class(TestIntOptional, [])
+    args = parse_test(TestIntOptional, [])
     assert args.arg == 0
-    args = parse_from_class(TestIntOptional, ["--arg", "1"])
+    args = parse_test(TestIntOptional, ["--arg", "1"])
     assert args.arg == 1
 
 
@@ -151,16 +155,16 @@ def test_enum(factory):
         arg: TestEnum
 
     _test_required(TestEnumRequired)
-    args = parse_from_class(TestEnumRequired, ["--arg", "a"])
+    args = parse_test(TestEnumRequired, ["--arg", "a"])
     assert args.arg == TestEnum.a
 
     @factory
     class TestEnumOptional:
         arg: TestEnum = TestEnum.b
 
-    args = parse_from_class(TestEnumOptional, ["--arg", "a"])
+    args = parse_test(TestEnumOptional, ["--arg", "a"])
     assert args.arg == TestEnum.a
-    args = parse_from_class(TestEnumOptional, [])
+    args = parse_test(TestEnumOptional, [])
     assert args.arg == TestEnum.b
 
 
@@ -179,9 +183,40 @@ def test_kwargs(factory):
         assert NoOrder(0) < NoOrder(1)
 
 
+def test_positional():
+    @argsclass
+    class TestPositional:
+        arg: str = arg(positional=True)
+
+    _test_required(TestPositional)
+
+    args = parse_test(TestPositional, ["test"])
+    assert args.arg == "test"
+
+
+def test_argsclass_on_decorator(factory):
+    @argsclass
+    @dataclass
+    class TestDoubleDecorators:
+        arg: str = arg(positional=True)
+
+    args = parse(TestDoubleDecorators, ["arg"])
+    assert args.arg == "arg"
+
+    description = "desc"
+
+    @argsclass(description=description)
+    @dataclass
+    class TestDoubleDecorators:
+        arg: str = arg(positional=True)
+
+    help_str = make_parser(TestDoubleDecorators).format_help()
+    assert description in help_str
+
+
 def _test_required(cls):
     with raises(ParserError) as exc_info:
-        parse_from_class(cls, [])
+        parse_test(cls, [])
     assert "required" in exc_info.value.message
 
 
@@ -193,9 +228,8 @@ class ParserError(Exception):
 T = TypeVar("T")
 
 
-def parse_from_class(cls: Type[T], args: Sequence[str]) -> T:
-    result = make_parser(cls, ParserTest()).parse_args(args)
-    return cls(**vars(result))
+def parse_test(cls: Type[T], args: Sequence[str]) -> T:
+    return parse(cls, args, parser=ParserTest())
 
 
 class ParserTest(ArgumentParser):
