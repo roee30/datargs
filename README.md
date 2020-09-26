@@ -1,6 +1,6 @@
 # datargs
 
-A paper-thin wrapper around `argparse` that create type-safe parsers
+A paper-thin wrapper around `argparse` that creates type-safe parsers
 from `dataclass` and `attrs` classes.
 
 ## Quickstart
@@ -63,10 +63,11 @@ Args(url="https://...", output_path=Path("out"), retries=4, verbose=True)
   * [Sub Commands](#sub-commands)
 - ["Why not"s and design choices](#why-nots-and-design-choices)
   * [Just use argparse?](#just-use-argparse)
-  * [Use `click`](#use-clickhttpsclickpalletsprojectscomen7x)
-  * [Use `simple-parsing`](#use-simple-parsinghttpspypiorgprojectsimple-parsing)
-  * [Use `argparse-dataclass`](#use-argparse-dataclasshttpspypiorgprojectargparse-dataclass)
-  * [Use `argparse-dataclasses`](#use-argparse-dataclasseshttpspypiorgprojectargparse-dataclasses)
+  * [Use `click`](#use-clickhttpsclickpalletsprojectscomen7x)?
+  * [Use `clout`](#use-clouthttpscloutreadthedocsioenlatestindexhtml)?
+  * [Use `simple-parsing`](#use-simple-parsinghttpspypiorgprojectsimple-parsing)?
+  * [Use `argparse-dataclass`](#use-argparse-dataclasshttpspypiorgprojectargparse-dataclass)?
+  * [Use `argparse-dataclasses`](#use-argparse-dataclasseshttpspypiorgprojectargparse-dataclasses)?
 - [FAQs](#faqs)
   * [Is this cross-platform?](#is-this-cross-platform)
   * [Why are mutually exclusive options not supported?](#why-are-mutually-exclusive-options-not-supported)
@@ -276,9 +277,17 @@ You won't discover you made a mistake until you run the code. With `datargs`, a 
 Also, why use a carriage when you have a spaceship?
 
 ### Use [`click`](https://click.palletsprojects.com/en/7.x/)?
-`click` is a great library. 
-Use `datargs` if you believe user interface should not be coupled with implementation.
+`click` is a great library. It provides many utilities for command line programs.
+
+Use `datargs` if you believe user interface should not be coupled with implementation, or if you
+want to use `argparse` without boilerplate.
 Use `click` if you don't care.
+
+
+### Use [`clout`](https://clout.readthedocs.io/en/latest/index.html)?
+It seems that `clout` aims to be an end-to-end solution for command line programs à la click.
+
+Use it if you need a broader solution. Use `datargs` if you want to use `argparse` without boilerplate.
 
 ### Use [`simple-parsing`](https://pypi.org/project/simple-parsing/)?
 This is another impressive library.
