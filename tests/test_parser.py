@@ -194,6 +194,15 @@ def test_positional():
     assert args.arg == "test"
 
 
+def test_order_bool():
+    @argsclass
+    class TestOrderBool:
+        not_required: str = arg(default='')
+        also_not_required: bool = arg()
+    args = parse_test(TestOrderBool, [])
+    assert not args.also_not_required
+
+
 def test_argsclass_on_decorator(factory):
     @argsclass
     @dataclass

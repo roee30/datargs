@@ -41,8 +41,6 @@ SystemExit: 2
 
 Specifying enums by name is not currently supported.
 """
-import dataclasses
-
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import (
     ArgumentParser,
@@ -50,7 +48,6 @@ from argparse import (
     _SubParsersAction,
     Namespace,
 )
-from dataclasses import dataclass, MISSING
 from enum import Enum
 from functools import wraps, partial
 from inspect import signature
@@ -66,7 +63,11 @@ from typing import (
     Mapping,
     Union,
     cast,
+    get_type_hints,
 )
+
+import dataclasses
+from dataclasses import dataclass, MISSING
 
 from .compat import RecordField, RecordClass, NotARecordClass, DatargsParams
 
@@ -235,6 +236,7 @@ class DatargsSubparsers(_SubParsersAction):
     """
     A subparsers action that creates the correct sub-command class upon parsing.
     """
+
     def __init__(self, name, *args, **kwargs):
         self.__name = name
         super().__init__(*args, **kwargs)
@@ -372,6 +374,12 @@ def make_class(
     try:
         RecordClass.wrap_class(cls)
     except NotARecordClass:
+        for key, value in cls.__dict__.items():
+            if not isinstance(value, dataclasses.Field) or value.default is not MISSING:
+                continue
+            typ = value.type or get_type_hints(cls)[key]
+            if typ is bool:
+                value.default = False
         new_cls = dataclass(*args, **kwargs)(cls)
     else:
         new_cls = cls
