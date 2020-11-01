@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from datargs import parse
 
-@dataclass  # or @attr.s
+@dataclass  # or @attr.s(auto_attribs=True)
 class Args:
     url: str
     output_path: Path
