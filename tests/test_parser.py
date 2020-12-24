@@ -244,6 +244,7 @@ def parse_test(cls: Type[T], args: Sequence[str]) -> T:
 class ParserTest(ArgumentParser):
     def error(self, message: Text) -> NoReturn:
         raise ParserError(message)
+    exit = error
 
 
 if __name__ == "__main__":

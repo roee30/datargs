@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "datargs"
-version = "0.2.2"
+version = "0.3.0"
 description = "Declerative, type-safe command line argument parsers from dataclasses and attrs classes"
 authors = ["Roee Nizan <roeen30@gmail.com>"]
 license = "MIT"
@@ -26,6 +26,7 @@ classifiers = [
 python = "^3.6"
 dataclasses = {version = "^0.6", python = "3.6"}
 attrs = {version = "^20.2.0", optional = true }
+boltons = "^20.2.1"
 
 [tool.poetry.extras]
 attrs = ["attrs"]

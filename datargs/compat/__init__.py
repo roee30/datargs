@@ -16,6 +16,7 @@ FieldType = TypeVar("FieldType")
 class DatargsParams:
     parser: dict = dataclasses.field(default_factory=dict)
     sub_commands: dict = dataclasses.field(default_factory=dict)
+    name: str = None
 
 
 class RecordField(Generic[FieldType]):

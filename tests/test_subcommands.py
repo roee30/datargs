@@ -1,12 +1,12 @@
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import _SubParsersAction
-from dataclasses import dataclass
 from typing import Union
 
+from dataclasses import dataclass
 from pytest import raises
 
 from datargs import make_parser, argsclass, arg, parse
-from tests.test_parser import ParserTest
+from tests.test_parser import ParserTest, ParserError
 
 
 def test_subcommands():
@@ -68,3 +68,68 @@ def test_union_no_dataclass():
     with raises(Exception) as exc_info:
         parse(Args, [])
     assert "Union" in exc_info.value.args[0]
+
+
+def test_name():
+    @argsclass(name="foo")
+    class Install:
+        package: str = arg(positional=True)
+
+    @argsclass(name="bar")
+    class Help:
+        command: str = arg(positional=True)
+
+    @argsclass
+    class Pip:
+        action: Union[Install, Help]
+
+    result = parse(Pip, ["foo", "x"], parser=ParserTest())
+    assert result.action.package == "x"
+    with raises(ParserError):
+        parse(Pip, ["install", "x"], parser=ParserTest())
+
+    result = parse(Pip, ["bar", "x"], parser=ParserTest())
+    assert result.action.command == "x"
+    with raises(ParserError):
+        parse(Pip, ["help", "x"], parser=ParserTest())
+
+
+def test_aliases():
+    @argsclass(parser_params=dict(aliases=["foo"]))
+    class Install:
+        package: str = arg(positional=True)
+
+    @argsclass(parser_params=dict(aliases=["bar"]))
+    class Help:
+        command: str = arg(positional=True)
+
+    @argsclass
+    class Pip:
+        action: Union[Install, Help]
+
+    for alias in ["install", "foo"]:
+        result = parse(Pip, [alias, "x"], parser=ParserTest())
+        assert result.action.package == "x"
+
+    for alias in ["help", "bar"]:
+        result = parse(Pip, [alias, "x"], parser=ParserTest())
+        assert result.action.command == "x"
+
+
+def test_hyphen():
+    @dataclass
+    class FooBar:
+        baz: str = arg(positional=True)
+
+    @dataclass
+    class BarFoo:
+        spam: str = arg(positional=True)
+
+    @argsclass
+    class Prog:
+        action: Union[FooBar, BarFoo]
+
+    result = parse(Prog, ["foo-bar", "x"], parser=ParserTest())
+    assert result.action.baz == "x"
+    result = parse(Prog, ["bar-foo", "x"], parser=ParserTest())
+    assert result.action.spam == "x"

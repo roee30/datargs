@@ -68,6 +68,7 @@ from typing import (
 
 import dataclasses
 from dataclasses import dataclass, MISSING
+from boltons.strutils import camel2under
 
 from .compat import RecordField, RecordClass, NotARecordClass, DatargsParams
 
@@ -242,9 +243,10 @@ class DatargsSubparsers(_SubParsersAction):
         super().__init__(*args, **kwargs)
         self._command_type_map = {}
 
-    def add_parser(self, typ: type, name: str, *args, **kwargs):
-        result = super().add_parser(name, *args, **kwargs)
-        self._command_type_map[name] = typ
+    def add_parser(self, typ: type, name: str, aliases=(), *args, **kwargs):
+        result = super().add_parser(name, aliases=aliases, *args, **kwargs)
+        for alias in [name, *aliases]:
+            self._command_type_map[alias] = typ
         return result
 
     def __call__(self, parser, namespace, values, *args, **kwargs):
@@ -297,7 +299,9 @@ def add_subparsers(
                 f"Union must be used with dataclass/attrs class and creates a subparser (got: {sub_parsers_field.type})"
             )
         sub_parser = subparsers.add_parser(
-            command, sub_parsers_args.name.lower(), **sub_parsers_args.parser_params
+            command,
+            sub_parsers_args.datargs_params.name or camel2under(sub_parsers_args.name).replace('_', '-'),
+            **sub_parsers_args.parser_params,
         )
         _make_parser(sub_parsers_args, sub_parser)
 
@@ -334,18 +338,26 @@ def argsclass(
     *args,
     description: str = None,
     parser_params: dict = None,
+    name: str = None,
     **kwargs,
 ):
     """
     A wrapper around `dataclass` for passing `description` and other params (in `parser_params`)
     to the `ArgumentParser` constructor.
+
+    :param cls: class to wrap
+    :description: parser description
+    :parser_params: dict of arguments to parser class constructor
+    :param name: Only used in subcommands, string to invoke subcommand. By default, the string used is the class' name converted to kebab-case, i.e., snake case with hyphens
     """
     # sub_commands_params has been disabled until a useful use case is found
     datargs_kwargs = {
         "description": description,
         "parser_params": parser_params,
+        "name": name,
         "sub_commands_params": {},
     }
+
     if cls is None:
         # We're called with parens.
         return partial(
@@ -367,6 +379,7 @@ def make_class(
     cls,
     description: str = None,
     parser_params: dict = None,
+    name: str = None,
     sub_commands_params: dict = None,
     *args,
     **kwargs,
@@ -386,6 +399,7 @@ def make_class(
     new_cls.__datargs_params__ = DatargsParams(
         parser={"description": description, **(parser_params or {})},
         sub_commands=sub_commands_params or {},
+        name=name,
     )
     return new_cls
 

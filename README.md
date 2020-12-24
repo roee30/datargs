@@ -134,10 +134,13 @@ Use it to save precious keystrokes:
 
 
 ### `ArgumentParser` options
-You can pass `ArgumnetParser` keyword arguments to `argsclass`:
+You can pass `ArgumnetParser` keyword arguments to `argsclass`.
+Description is its own parameter - the rest are passed as the `parser_params` parameter as a `dict`.
+
+When a class is used as a subcommand (see below), `parser_params` are passed to `add_parser`, including `aliases`.
 ```pycon
 >>> from datargs import parse, argsclass
->>> @argsclass(description="Romans go home!", prog="messiah.py")
+>>> @argsclass(description="Romans go home!", parser_params=dict(prog="messiah.py"))
 ... class Args:
 ...     flag: bool
 >>> parse(Args, ["-h"], parser=parser)
@@ -181,7 +184,7 @@ With `datargs`, enums Just Work™:
 >>> @attr.dataclass
 ... class Args:
 ...     food: FoodEnum
->>> datargs.parse(Args, ["--food", "eggs"])
+>>> datargs.parse(Args, ["--food", "ham"])
 Args(food=<FoodEnum.ham: 0>)
 >>> datargs.parse(Args, ["--food", "eggs"])
 usage: enum_test.py [-h] --food {ham,spam}
@@ -232,6 +235,11 @@ elif isinstance(args.action, Show):
 else:
     assert False, "Unreachable code"
 ```
+Command name is derived from class name. To change this, use the `name` parameter to `@argsclass`.
+
+As with all other parameters to `add_parser`, 
+`aliases` can be passed as a key in `parser_params` to add subcommand aliases.
+
 **NOTE**: if the commented-out line above does not issue a type error, try adding an `@dataclass/@attr.s`
 before or instead of `@argsclass()`:
 
