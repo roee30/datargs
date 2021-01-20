@@ -4,6 +4,8 @@ A paper-thin wrapper around `argparse` that creates type-safe parsers
 from `dataclass` and `attrs` classes.
 
 ## Quickstart
+
+
 Install `datargs`:
 
 ```bash
@@ -33,6 +35,18 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+***(experimental)*** Alternatively: convert an existing parser to a dataclass:
+```python
+# script.py
+parser = ArgumentParser()
+parser.add_argument(...)
+from datargs import convert
+convert(parser)
+```
+
+`convert()` prints a class definition to the console. 
+Copy it to your script.
 
 Mypy and pycharm correctly infer the type of `args` as `Args`, and your script is good to go!
 ```bash
