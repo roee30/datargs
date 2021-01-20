@@ -203,7 +203,10 @@ def test_order_bool():
     assert not args.also_not_required
 
 
-def test_argsclass_on_decorator(factory):
+def test_argsclass_on_decorator():
+    """
+    Does not work with attrs.
+    """
     @argsclass
     @dataclass
     class TestDoubleDecorators:
@@ -221,6 +224,22 @@ def test_argsclass_on_decorator(factory):
 
     help_str = make_parser(TestDoubleDecorators).format_help()
     assert description in help_str
+
+
+def test_nargs_dataclass():
+    @dataclass()
+    class Nargs:
+        nums: int = arg(nargs="+")
+    args = parse_test(Nargs, ["--nums", "1", "2"])
+    assert args.nums == [1,2]
+
+
+def test_nargs_attrs():
+    @attr.s
+    class Nargs:
+        nums: int = attr.ib(metadata=dict(nargs="+"))
+    args = parse_test(Nargs, ["--nums", "1", "2"])
+    assert args.nums == [1,2]
 
 
 def _test_required(cls):

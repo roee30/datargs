@@ -118,7 +118,7 @@ optional arguments:
 Args(retries=4)
 ```
 
-`arg` is a replacement for `field`/`attr.ib` that puts `add_argument()` parameters in `metadata`.
+`arg` is a replacement for `field` that puts `add_argument()` parameters in `metadata`.
 Use it to save precious keystrokes:
 ```pycon
 >>> from dataclasses import dataclass
@@ -129,6 +129,8 @@ Use it to save precious keystrokes:
 >>> parse(Args, ["-h"])
 # exactly the same as before
 ```
+
+**NOTE**: `arg()` does not currently work with `attr.s`.
 
 `arg()` also supports all `field`/`attr.ib()` keyword arguments.
 
