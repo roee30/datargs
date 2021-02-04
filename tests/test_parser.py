@@ -2,6 +2,7 @@ from abc import ABC
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Type, Sequence, Text, NoReturn, TypeVar
 
 import attr
@@ -166,6 +167,44 @@ def test_enum(factory):
     assert args.arg == TestEnum.a
     args = parse_test(TestEnumOptional, [])
     assert args.arg == TestEnum.b
+
+
+def test_sequence(factory):
+    @factory
+    class TestSequenceRequired:
+        arg: Sequence[int]
+
+    _test_required(TestSequenceRequired)
+
+    args = parse_test(TestSequenceRequired, ["--arg", "1", "2"])
+    assert args.arg == [1, 2]
+
+    @factory
+    class TestSequenceOptional:
+        arg: Sequence[int] = ()
+
+    args = parse_test(TestSequenceOptional, [])
+    assert args.arg == ()
+    args = parse_test(TestSequenceOptional, ["--arg", "1", "2"])
+    assert args.arg == [1, 2]
+
+    @argsclass
+    class TestSequencePositional:
+        arg: Sequence[int] = arg(default=(), positional=True)
+
+    args = parse_test(TestSequencePositional, [])
+    assert args.arg == ()
+    args = parse_test(TestSequencePositional, ["1", "2"])
+    assert args.arg == [1, 2]
+
+    @argsclass
+    class TestSequencePositionalPath:
+        arg: Sequence[Path] = arg(default=(), positional=True)
+
+    args = parse_test(TestSequencePositionalPath, [])
+    assert args.arg == ()
+    args = parse_test(TestSequencePositionalPath, ["1", "2"])
+    assert args.arg == [Path('1'), Path('2')]
 
 
 def test_kwargs(factory):

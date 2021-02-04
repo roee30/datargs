@@ -73,7 +73,7 @@ Args(url="https://...", output_path=Path("out"), retries=4, verbose=True)
   * [`dataclass`/`attr.s` agnostic](#dataclassattrs-agnostic)
   * [Aliases](#aliases)
   * [`ArgumentParser` options](#argumentparser-options)
-  * [Enums](#enums)
+  * [Enums and Sequences](#enums-and-sequences)
   * [Sub Commands](#sub-commands)
 - ["Why not"s and design choices](#why-nots-and-design-choices)
   * [Just use argparse?](#just-use-argparse)
@@ -189,7 +189,7 @@ Use `make_parser()` to create a parser and save it for later:
 ```
 **NOTE**: passing your own parser ignores `ArgumentParser` params passed to `argsclass()`.
 
-### Enums
+### Enums and Sequences
 With `datargs`, enums Just Work™:
 
 ```pycon
@@ -211,6 +211,34 @@ enum_test.py: error: argument --food: invalid choice: 'eggs' (choose from ['ham'
 
 - compatibility with both `dataclass` and `attrs`
 - `args` supports all `field` and `attr.ib` arguments.
+
+***(experimental)*** Have a `Sequence` or a `List` of something to
+automatically use `nargs`:
+
+
+```python
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Sequence
+from datargs import parse
+
+@dataclass
+class Args:
+    # same as nargs='*'
+    files: Sequence[Path] = ()
+
+args = parse(Args, ["--files", "foo.txt", "bar.txt"])
+assert args.files == [Path("foo.txt"), Path("bar.txt")]
+```
+
+Specify a list of positional parameters like so:
+
+```python
+from datargs import argsclass, arg
+@argsclass
+class Args:
+    arg: Sequence[int] = arg(default=(), positional=True)
+```
 
 ### Sub Commands
 

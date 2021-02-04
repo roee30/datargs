@@ -79,8 +79,8 @@ class Action:
     kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
 
 
-DispatchCallback = Callable[[str, RecordField], Action]
-AddArgFunc = Callable[[RecordField], Action]
+DispatchCallback = Callable[[str, RecordField, dict], Action]
+AddArgFunc = Callable[[RecordField, dict], Action]
 
 
 def field_name_to_arg_name(name: str, positional=False) -> str:
@@ -94,11 +94,20 @@ class TypeDispatch:
     dispatch: Dict[type, AddArgFunc] = {}
 
     @classmethod
-    def add_arg(cls, field: RecordField):
+    def add_arg(cls, field: RecordField, override: dict):
+        dispatch_type = field.origin or field.type
         for typ, func in cls.dispatch.items():
-            if issubclass(field.type, typ):
-                return func(field)
-        return add_any(field)
+            if issubclass(dispatch_type, typ):
+                return func(field, override)
+        return add_any(field, override)
+
+    @classmethod
+    def add_simple_for_type(cls, field: RecordField, typ: type, override: dict):
+        override = {**override, "type": typ}
+        for typ, func in cls.dispatch.items():
+            if issubclass(typ, typ):
+                return func(field, override)
+        return add_any(field, override)
 
     @classmethod
     def register(cls, typ):
@@ -111,18 +120,19 @@ class TypeDispatch:
 
 def add_name_formatting(func: DispatchCallback) -> AddArgFunc:
     @wraps(func)
-    def new_func(field: RecordField):
+    def new_func(field: RecordField, override: dict):
         return func(
             field_name_to_arg_name(field.name, positional=field.is_positional),
             field,
+            override,
         )
 
     return new_func
 
 
 @add_name_formatting
-def add_any(name: str, field: RecordField) -> Action:
-    return add_default(name, field)
+def add_any(name: str, field: RecordField, extra: dict) -> Action:
+    return add_default(name, field, extra)
 
 
 def get_option_strings(name: str, field: RecordField):
@@ -137,15 +147,15 @@ def subdict(dct, remove_keys):
     return {key: value for key, value in dct.items() if key not in remove_keys}
 
 
-def add_default(name, field: RecordField, **kwargs) -> Action:
-    kwargs = {
+def add_default(name, field: RecordField, override: dict) -> Action:
+    override = {
         "default": field.default,
         **common_kwargs(field),
-        **kwargs,
+        **override,
     }
     if not field.is_positional:
-        kwargs["required"] = field.is_required()
-    return Action(kwargs=kwargs, args=get_option_strings(name, field))
+        override["required"] = field.is_required()
+    return Action(kwargs=override, args=get_option_strings(name, field))
 
 
 T = TypeVar("T")
@@ -157,10 +167,28 @@ def call_func_with_matching_kwargs(func: Callable[..., T], *args, **kwargs) -> T
     return func(*args, **new_kwargs)
 
 
+@TypeDispatch.register(str)
+def add_str(name, field, override: dict):
+    return add_default(name, field, override)
+
+
+@TypeDispatch.register(Sequence)
+def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
+    nargs = field.metadata.get("nargs")
+    if nargs:
+        assert nargs in ("+", "?") or isinstance(nargs, int)
+    else:
+        nargs = "+" if field.is_required() else "*"
+    return TypeDispatch.add_simple_for_type(
+        field, field.type.__args__[0], dict(**override, nargs=nargs)
+    )
+
+
 @TypeDispatch.register(bool)
-def bool_arg(name: str, field: RecordField) -> Action:
+def bool_arg(name: str, field: RecordField, override: dict) -> Action:
     kwargs = {
         **subdict(common_kwargs(field), ["type"]),
+        **override,
         "action": "store_false"
         if field.default and field.has_default()
         else "store_true",
@@ -172,7 +200,7 @@ def bool_arg(name: str, field: RecordField) -> Action:
 
 
 @TypeDispatch.register(Enum)
-def enum_arg(name: str, field: RecordField) -> Action:
+def enum_arg(name: str, field: RecordField, override: dict) -> Action:
     def enum_type_func(value: str):
         result = field.type.__members__.get(value)
         if not result:
@@ -184,9 +212,12 @@ def enum_arg(name: str, field: RecordField) -> Action:
     return add_default(
         name,
         field,
-        type=enum_type_func,
-        choices=field.type,
-        metavar=f"{{{','.join(field.type.__members__)}}}",
+        dict(
+            **override,
+            type=enum_type_func,
+            choices=field.type,
+            metavar=f"{{{','.join(field.type.__members__)}}}",
+        ),
     )
 
 
@@ -270,7 +301,7 @@ def _make_parser(record_class: RecordClass, parser: ParserType = None) -> Parser
         if sub_commands is not None:
             add_subparsers(parser, record_class, field, sub_commands)
         else:
-            action = TypeDispatch.add_arg(field)
+            action = TypeDispatch.add_arg(field, {})
             parser.add_argument(*action.args, **action.kwargs)
     return parser
 
@@ -300,7 +331,8 @@ def add_subparsers(
             )
         sub_parser = subparsers.add_parser(
             command,
-            sub_parsers_args.datargs_params.name or camel2under(sub_parsers_args.name).replace('_', '-'),
+            sub_parsers_args.datargs_params.name
+            or camel2under(sub_parsers_args.name).replace("_", "-"),
             **sub_parsers_args.parser_params,
         )
         _make_parser(sub_parsers_args, sub_parser)
@@ -346,9 +378,10 @@ def argsclass(
     to the `ArgumentParser` constructor.
 
     :param cls: class to wrap
-    :description: parser description
-    :parser_params: dict of arguments to parser class constructor
-    :param name: Only used in subcommands, string to invoke subcommand. By default, the string used is the class' name converted to kebab-case, i.e., snake case with hyphens
+    :param description: parser description
+    :param parser_params: dict of arguments to parser class constructor
+    :param name: Only used in subcommands, string to invoke subcommand. By default, the string used is the class'
+        name converted to kebab-case, i.e., snake case with hyphens
     """
     # sub_commands_params has been disabled until a useful use case is found
     datargs_kwargs = {
@@ -404,7 +437,6 @@ def make_class(
     return new_cls
 
 
-# noinspection PyShadowingBuiltins
 def arg(
     positional=False,
     nargs=None,

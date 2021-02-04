@@ -24,10 +24,10 @@ class RecordField(Generic[FieldType]):
     Abstract base class for fields of dataclasses or attrs classes.
     """
 
-    field: FieldType
+    _field: FieldType
 
     def __init__(self, field):
-        self.field = field
+        self._field = field
 
     @abstractmethod
     def is_required(self) -> bool:
@@ -45,19 +45,26 @@ class RecordField(Generic[FieldType]):
 
     @property
     def default(self):
-        return self.field.default
+        return self._field.default
 
     @property
     def name(self):
-        return self.field.name
+        return self._field.name
 
     @property
     def type(self):
-        return self.field.type
+        return self._field.type
+
+    @property
+    def origin(self):
+        try:
+            return self._field.type.__origin__
+        except AttributeError:
+            return None
 
     @property
     def metadata(self):
-        return self.field.metadata
+        return self._field.metadata
 
     @property
     def is_positional(self) -> bool:
@@ -70,7 +77,7 @@ class DataField(RecordField[dataclasses.Field]):
     """
 
     def is_required(self) -> bool:
-        return self.field.default is dataclasses.MISSING
+        return self._field.default is dataclasses.MISSING
 
 
 class NotARecordClass(Exception):
