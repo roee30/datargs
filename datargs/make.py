@@ -1,6 +1,6 @@
 # noinspection PyUnresolvedReferences
 """
-Declerative, type safe `argparse` parsers.
+Declarative, type safe `argparse` parsers.
 
 >>> @dataclass
 ... class Args:
