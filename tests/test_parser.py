@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Type, Sequence, Text, NoReturn, TypeVar
+from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional
 
 import attr
 import pytest
@@ -204,7 +204,18 @@ def test_sequence(factory):
     args = parse_test(TestSequencePositionalPath, [])
     assert args.arg == ()
     args = parse_test(TestSequencePositionalPath, ["1", "2"])
-    assert args.arg == [Path('1'), Path('2')]
+    assert args.arg == [Path("1"), Path("2")]
+
+
+def test_optional(factory):
+    @factory
+    class TestOptional:
+        arg: Optional[int] = None
+
+    args = parse_test(TestOptional, [])
+    assert args.arg is None
+    args = parse_test(TestOptional, ["--arg", "1"])
+    assert args.arg == 1
 
 
 def test_kwargs(factory):
@@ -236,8 +247,9 @@ def test_positional():
 def test_order_bool():
     @argsclass
     class TestOrderBool:
-        not_required: str = arg(default='')
+        not_required: str = arg(default="")
         also_not_required: bool = arg()
+
     args = parse_test(TestOrderBool, [])
     assert not args.also_not_required
 
@@ -246,6 +258,7 @@ def test_argsclass_on_decorator():
     """
     Does not work with attrs.
     """
+
     @argsclass
     @dataclass
     class TestDoubleDecorators:
@@ -269,16 +282,18 @@ def test_nargs_dataclass():
     @dataclass()
     class Nargs:
         nums: int = arg(nargs="+")
+
     args = parse_test(Nargs, ["--nums", "1", "2"])
-    assert args.nums == [1,2]
+    assert args.nums == [1, 2]
 
 
 def test_nargs_attrs():
     @attr.s
     class Nargs:
         nums: int = attr.ib(metadata=dict(nargs="+"))
+
     args = parse_test(Nargs, ["--nums", "1", "2"])
-    assert args.nums == [1,2]
+    assert args.nums == [1, 2]
 
 
 def _test_required(cls):
@@ -302,6 +317,7 @@ def parse_test(cls: Type[T], args: Sequence[str]) -> T:
 class ParserTest(ArgumentParser):
     def error(self, message: Text) -> NoReturn:
         raise ParserError(message)
+
     exit = error
 
 

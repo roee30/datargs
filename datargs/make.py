@@ -1,6 +1,6 @@
 # noinspection PyUnresolvedReferences
 """
-Declerative, type safe `argparse` parsers.
+Declarative, type safe `argparse` parsers.
 
 >>> @dataclass
 ... class Args:
@@ -64,6 +64,7 @@ from typing import (
     Union,
     cast,
     get_type_hints,
+    List,
 )
 
 import dataclasses
@@ -89,12 +90,25 @@ def field_name_to_arg_name(name: str, positional=False) -> str:
     return f"--{name.replace('_','-')}"
 
 
+SpecialRule = Callable[[Type["TypeDispatch"], RecordField], Optional[Action]]
+
+
 class TypeDispatch:
 
     dispatch: Dict[type, AddArgFunc] = {}
+    special_rules: List[SpecialRule] = []
+
+    @classmethod
+    def register_special(cls, func: SpecialRule):
+        cls.special_rules.append(func)
+        return func
 
     @classmethod
     def add_arg(cls, field: RecordField, override: dict):
+        for rule in cls.special_rules:
+            action = rule(cls, field)
+            if action:
+                return action
         dispatch_type = field.origin or field.type
         for typ, func in cls.dispatch.items():
             if issubclass(dispatch_type, typ):
@@ -112,7 +126,7 @@ class TypeDispatch:
     @classmethod
     def register(cls, typ):
         def decorator(func: DispatchCallback) -> AddArgFunc:
-            cls.dispatch[typ] = new_func = add_name_formatting(func)
+            cls.dispatch[typ] = new_func = wraps(func)(add_name_formatting(func))
             return new_func
 
         return decorator
@@ -165,6 +179,22 @@ def call_func_with_matching_kwargs(func: Callable[..., T], *args, **kwargs) -> T
     sig = signature(func)
     new_kwargs = {key: value for key, value in kwargs.items() if key in sig.parameters}
     return func(*args, **new_kwargs)
+
+
+def is_optional(typ):
+    return (
+        getattr(typ, "__origin__", None) is Union
+        and len(typ.__args__) == 2
+        and type(None) in typ.__args__
+    )
+
+
+@TypeDispatch.register_special
+def optional_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[Action]:
+    if is_optional(field.type):
+        inner_type = (set(field.type.__args__) - {type(None)}).pop()
+        return dispatch.add_simple_for_type(field, inner_type, {})
+    return None
 
 
 @TypeDispatch.register(str)
@@ -294,7 +324,7 @@ def _make_parser(record_class: RecordClass, parser: ParserType = None) -> Parser
     for name, field in record_class.fields_dict().items():
         sub_commands = None
         try:
-            if field.type.__origin__ is Union:
+            if field.type.__origin__ is Union and not is_optional(field.type):
                 sub_commands = field.type.__args__
         except AttributeError:
             pass
