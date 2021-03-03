@@ -41,13 +41,17 @@ SystemExit: 2
 
 Specifying enums by name is not currently supported.
 """
+import dataclasses
+
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import (
     ArgumentParser,
     ArgumentTypeError,
     _SubParsersAction,
     Namespace,
+    _CountAction,
 )
+from dataclasses import dataclass, MISSING
 from enum import Enum
 from functools import wraps, partial
 from inspect import signature
@@ -60,15 +64,12 @@ from typing import (
     Optional,
     overload,
     Any,
-    Mapping,
     Union,
     cast,
     get_type_hints,
     List,
 )
 
-import dataclasses
-from dataclasses import dataclass, MISSING
 from boltons.strutils import camel2under
 
 from .compat import RecordField, RecordClass, NotARecordClass, DatargsParams
@@ -77,7 +78,7 @@ from .compat import RecordField, RecordClass, NotARecordClass, DatargsParams
 @dataclass
 class Action:
     args: Sequence[Any] = dataclasses.field(default_factory=list)
-    kwargs: Mapping[str, Any] = dataclasses.field(default_factory=dict)
+    kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
 
 DispatchCallback = Callable[[str, RecordField, dict], Action]
@@ -332,8 +333,17 @@ def _make_parser(record_class: RecordClass, parser: ParserType = None) -> Parser
             add_subparsers(parser, record_class, field, sub_commands)
         else:
             action = TypeDispatch.add_arg(field, {})
+            fix_count_action_kwargs(action)
             parser.add_argument(*action.args, **action.kwargs)
     return parser
+
+
+def fix_count_action_kwargs(action):
+    """
+    If argument action is "count", remove "type" kwarg
+    """
+    if action.kwargs.get("action") == "count":
+        action.kwargs.pop("type")
 
 
 def add_subparsers(
