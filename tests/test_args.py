@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from datargs.make import arg, parse, make_parser
 from tests.test_parser import ParserTest
@@ -64,3 +64,18 @@ def test_alias():
 
     args = parse(Args, ["-n", "0"])
     assert args.num == 0
+
+
+def test_count():
+    @dataclass
+    class Args:
+        verbosity: int = field(
+            default=0,
+            metadata=dict(
+                aliases=["-v"],
+                help="Increase logging verbosity",
+                action="count",
+            ),
+        )
+    args = parse(Args, ["-vv"])
+    assert args.verbosity == 2
