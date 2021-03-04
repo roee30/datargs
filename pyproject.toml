@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "datargs"
-version = "0.7.0"
+version = "0.8.0"
 description = "Declarative, type-safe command line argument parsers from dataclasses and attrs classes"
 authors = ["Roee Nizan <roeen30@gmail.com>"]
 license = "MIT"
