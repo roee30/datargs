@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pytest import raises
 
 from datargs import make_parser, argsclass, arg, parse
-from tests.test_parser import ParserTest, ParserError
+from tests.test_arg_type import ParserTest, ParserError
 
 
 def test_subcommands():

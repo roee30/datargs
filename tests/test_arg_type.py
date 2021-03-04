@@ -169,6 +169,21 @@ def test_enum(factory):
     assert args.arg == TestEnum.b
 
 
+def test_optional_enum(factory):
+    class TestEnum(Enum):
+        foo = 0
+        bar = 0
+
+    @factory
+    class Args:
+        arg: Optional[TestEnum] = None
+
+    args = parse_test(Args, ["--arg", "foo"])
+    assert args.arg == TestEnum.foo
+    args = parse_test(Args, [])
+    assert args.arg is None
+
+
 def test_sequence(factory):
     @factory
     class TestSequenceRequired:
