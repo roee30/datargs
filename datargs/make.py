@@ -119,8 +119,8 @@ class TypeDispatch:
     @classmethod
     def add_simple_for_type(cls, field: RecordField, typ: type, override: dict):
         override = {**override, "type": typ}
-        for typ, func in cls.dispatch.items():
-            if issubclass(typ, typ):
+        for rule_typ, func in cls.dispatch.items():
+            if issubclass(typ, rule_typ):
                 return func(field, override)
         return add_any(field, override)
 
@@ -232,8 +232,10 @@ def bool_arg(name: str, field: RecordField, override: dict) -> Action:
 
 @TypeDispatch.register(Enum)
 def enum_arg(name: str, field: RecordField, override: dict) -> Action:
+    field_type = override.get("type") or field.type
+
     def enum_type_func(value: str):
-        result = field.type.__members__.get(value)
+        result = field_type.__members__.get(value)
         if not result:
             raise ArgumentTypeError(
                 f"invalid choice: {value!r} (choose from {[e.name for e in field.type]})"
@@ -243,12 +245,12 @@ def enum_arg(name: str, field: RecordField, override: dict) -> Action:
     return add_default(
         name,
         field,
-        dict(
+        {
             **override,
-            type=enum_type_func,
-            choices=field.type,
-            metavar=f"{{{','.join(field.type.__members__)}}}",
-        ),
+            "type": enum_type_func,
+            "choices": field_type,
+            "metavar": f"{{{','.join(field_type.__members__)}}}",
+        },
     )
 
 

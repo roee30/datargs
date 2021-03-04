@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from datargs.make import arg, parse, make_parser
-from tests.test_parser import ParserTest
+from tests.test_arg_type import ParserTest
 
 
 def test_help():
