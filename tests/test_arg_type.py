@@ -222,6 +222,17 @@ def test_sequence(factory):
     assert args.arg == [Path("1"), Path("2")]
 
 
+def test_sequence_optional(factory):
+    @factory
+    class TestSequenceRequired:
+        arg: Optional[Sequence[int]]
+
+    args = parse_test(TestSequenceRequired, [])
+    assert args.arg is None
+    args = parse_test(TestSequenceRequired, ["--arg", "1", "2"])
+    assert args.arg == [1, 2]
+
+
 def test_optional(factory):
     @factory
     class TestOptional:

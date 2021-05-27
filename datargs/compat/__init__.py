@@ -1,11 +1,10 @@
 """
 Module for uniform treatment of dataclasses and attrs classes.
 """
-from abc import abstractmethod
-from typing import TypeVar, Generic, Mapping, Type
-
 import dataclasses
+from abc import abstractmethod
 from dataclasses import dataclass
+from typing import TypeVar, Generic, Mapping, Type
 
 from datargs.meta import AbstractClassProperty
 
@@ -54,13 +53,6 @@ class RecordField(Generic[FieldType]):
     @property
     def type(self):
         return self._field.type
-
-    @property
-    def origin(self):
-        try:
-            return self._field.type.__origin__
-        except AttributeError:
-            return None
 
     @property
     def metadata(self):
