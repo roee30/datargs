@@ -68,6 +68,7 @@ from typing import (
     cast,
     get_type_hints,
     List,
+    get_origin,
 )
 
 from boltons.strutils import camel2under
@@ -110,7 +111,7 @@ class TypeDispatch:
             action = rule(cls, field)
             if action:
                 return action
-        dispatch_type = field.origin or field.type
+        dispatch_type = get_origin(field.type) or field.type
         for typ, func in cls.dispatch.items():
             if issubclass(dispatch_type, typ):
                 return func(field, override)
@@ -194,7 +195,14 @@ def is_optional(typ):
 def optional_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[Action]:
     if is_optional(field.type):
         inner_type = (set(field.type.__args__) - {type(None)}).pop()
-        return dispatch.add_simple_for_type(field, inner_type, {})
+
+        update = {
+            "type": inner_type,
+            "default": None,
+        }
+        for key, value in update.items():
+            object.__setattr__(field._field, key, value)
+        return dispatch.add_arg(field, {})
     return None
 
 
