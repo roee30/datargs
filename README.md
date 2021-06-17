@@ -351,7 +351,6 @@ Use `datargs` if you:
 * need `attrs` support
 * want as little magic as possible
 * don't have many options or they're not nested
-* prefer dashes (`--like-this`) over underscores (`--like_this`)
 
 ### Use [`argparse-dataclass`](https://pypi.org/project/argparse-dataclass/)?
 It's similar to this library. The main differences I found are:
