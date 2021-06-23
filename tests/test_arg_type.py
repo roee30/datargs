@@ -292,6 +292,27 @@ def test_optional_literal(factory):
     assert args.arg == None
 
 
+def test_literal_override_choices():
+    @dataclass
+    class Args:
+        arg: Literal[0, 1, 2] = arg(choices=(0, 1))
+
+    args = parse_test(Args, ["--arg", 0])
+    assert args.arg == 0
+
+    with raises(ParserError):
+        args = parse_test(Args, ["--arg", "2"])
+
+
+def test_literal_bad_choices():
+    @dataclass
+    class Args:
+        arg: Literal[0, 1, 2] = arg(choices=(0, 1, 2, 3))
+
+    with raises(AssertionError):
+        args = parse_test(Args, ["--arg", 0])
+
+
 def test_kwargs(factory):
     @factory(order=True)
     class Order:

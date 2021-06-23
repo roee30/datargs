@@ -216,7 +216,13 @@ def is_literal(typ) -> bool:
 @TypeDispatch.register_special
 def literal_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[Action]:
     if is_literal(field.type):
-        choices = field.type.__args__
+        literal_options = set(field.type.__args__)
+
+        if "choices" in field.metadata:
+            choices = set(field.metadata["choices"])
+            assert choices.issubset(literal_options)
+        else:
+            choices = literal_options
 
         assert (
             len(set(map(type, choices))) == 1
