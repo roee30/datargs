@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional
+from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional, Literal
 
 import attr
 import pytest
@@ -242,6 +242,54 @@ def test_optional(factory):
     assert args.arg is None
     args = parse_test(TestOptional, ["--arg", "1"])
     assert args.arg == 1
+
+
+def test_literal_int(factory):
+    @factory
+    class Args:
+        arg: Literal[0, 1, 2]
+
+    args = parse_test(Args, ["--arg", "1"])
+    assert args.arg == 1
+
+    with raises(ParserError):
+        args = parse_test(Args, ["--arg", "5"])
+
+
+def test_literal_str(factory):
+    @factory
+    class Args:
+        arg: Literal["option1", "option2"]
+
+    args = parse_test(Args, ["--arg", "option1"])
+    assert args.arg == "option1"
+
+    with raises(ParserError):
+        args = parse_test(Args, ["--arg", "option3"])
+
+
+def test_literal_mixed(factory):
+    @factory
+    class Args:
+        arg: Literal[0, "hello"]
+
+    with raises(AssertionError):
+        args = parse_test(Args, ["--arg", 0])
+
+
+def test_optional_literal(factory):
+    @factory
+    class Args:
+        arg: Optional[Literal[0, 1, 2]]
+
+    args = parse_test(Args, ["--arg", 0])
+    assert args.arg == 0
+
+    with raises(ParserError):
+        args = parse_test(Args, ["--arg", "foo"])
+
+    args = parse_test(Args, [])
+    assert args.arg == None
 
 
 def test_kwargs(factory):

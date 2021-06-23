@@ -77,5 +77,6 @@ def test_count():
                 action="count",
             ),
         )
+
     args = parse(Args, ["-vv"])
     assert args.verbosity == 2

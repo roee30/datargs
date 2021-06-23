@@ -42,6 +42,7 @@ SystemExit: 2
 Specifying enums by name is not currently supported.
 """
 import dataclasses
+import copy
 
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import (
@@ -69,6 +70,7 @@ from typing import (
     get_type_hints,
     List,
     get_origin,
+    Literal,
 )
 
 from boltons.strutils import camel2under
@@ -183,7 +185,7 @@ def call_func_with_matching_kwargs(func: Callable[..., T], *args, **kwargs) -> T
     return func(*args, **new_kwargs)
 
 
-def is_optional(typ):
+def is_optional(typ) -> bool:
     return (
         getattr(typ, "__origin__", None) is Union
         and len(typ.__args__) == 2
@@ -196,6 +198,7 @@ def optional_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[
     if is_optional(field.type):
         inner_type = (set(field.type.__args__) - {type(None)}).pop()
 
+        field._field = copy.copy(field._field)
         update = {
             "type": inner_type,
             "default": None,
@@ -203,6 +206,26 @@ def optional_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[
         for key, value in update.items():
             object.__setattr__(field._field, key, value)
         return dispatch.add_arg(field, {})
+    return None
+
+
+def is_literal(typ) -> bool:
+    return getattr(typ, "__origin__", None) is Literal and hasattr(typ, "__args__")
+
+
+@TypeDispatch.register_special
+def literal_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[Action]:
+    if is_literal(field.type):
+        choices = field.type.__args__
+
+        assert (
+            len(set(map(type, choices))) == 1
+        ), "All choices in literal must have the same type!"
+        inner_type = type(field.type.__args__[0])
+
+        field._field = copy.copy(field._field)
+        object.__setattr__(field._field, "type", inner_type)
+        return dispatch.add_arg(field, {"choices": choices})
     return None
 
 
