@@ -69,6 +69,7 @@ from typing import (
     get_type_hints,
     List,
     get_origin,
+    Literal,
 )
 
 from boltons.strutils import camel2under
@@ -115,19 +116,11 @@ class TypeDispatch:
 
     @classmethod
     def add_arg(cls, field: RecordField, override: dict):
-        typ = override.get("type", None or field.type)
+        typ = override.get("type", field.type)
         override = {**override, "type": typ}
         dispatch_type = get_origin(typ) or typ
         for typ, func in cls.dispatch.items():
             if is_subclass(dispatch_type, typ):
-                return func(field, override)
-        return add_any(field, override)
-
-    @classmethod
-    def add_simple_for_type(cls, field: RecordField, typ: type, override: dict):
-        override = {**override, "type": typ}
-        for rule_typ, func in cls.dispatch.items():
-            if is_subclass(typ, rule_typ):
                 return func(field, override)
         return add_any(field, override)
 
@@ -201,19 +194,39 @@ def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
         assert nargs in ("+", "?") or isinstance(nargs, int)
     else:
         nargs = "+" if field.is_required() else "*"
-    return TypeDispatch.add_simple_for_type(
+    new_type = (override.get("type") or field.type).__args__[0]
+    return TypeDispatch.add_arg(
         field,
-        (override.get("type") or field.type).__args__[0],
-        dict(**override, nargs=nargs),
+        {**override, "nargs": nargs, "type": new_type},
     )
 
 
 @TypeDispatch.register(Union)
 def union_arg(name: str, field: RecordField, override: dict) -> Action:
-
     inner_type = (set(field.type.__args__) - {type(None)}).pop()
     return TypeDispatch.add_arg(
         field, {**override, "default": None, "type": inner_type}
+    )
+
+
+@TypeDispatch.register(Literal)
+def literal_arg(name: str, field: RecordField, override: dict) -> Action:
+    typ = override.get("type", field.type)
+    literal_options = set(typ.__args__)
+
+    if "choices" in field.metadata:
+        choices = set(field.metadata["choices"])
+        assert choices.issubset(literal_options)
+    else:
+        choices = literal_options
+
+    assert (
+        len(set(map(type, choices))) == 1
+    ), "All choices in literal must have the same type!"
+    inner_type = type(typ.__args__[0])
+
+    return TypeDispatch.add_arg(
+        field, {**override, "choices": choices, "type": inner_type}
     )
 
 
