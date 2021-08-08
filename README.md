@@ -45,7 +45,7 @@ from datargs import convert
 convert(parser)
 ```
 
-`convert()` prints a class definition to the console. 
+`convert()` prints a class definition to the console.
 Copy it to your script.
 
 Mypy and pycharm correctly infer the type of `args` as `Args`, and your script is good to go!
@@ -73,7 +73,8 @@ Args(url="https://...", output_path=Path("out"), retries=4, verbose=True)
   * [`dataclass`/`attr.s` agnostic](#dataclassattrs-agnostic)
   * [Aliases](#aliases)
   * [`ArgumentParser` options](#argumentparser-options)
-  * [Enums and Sequences](#enums-and-sequences)
+  * [Enums](#enums)
+  * [Sequences, Optionals, and Literals](#sequences-optionals-and-literals)
   * [Sub Commands](#sub-commands)
 - ["Why not"s and design choices](#why-nots-and-design-choices)
   * [Just use argparse?](#just-use-argparse)
@@ -189,7 +190,7 @@ Use `make_parser()` to create a parser and save it for later:
 ```
 **NOTE**: passing your own parser ignores `ArgumentParser` params passed to `argsclass()`.
 
-### Enums and Sequences
+### Enums
 With `datargs`, enums Just Work™:
 
 ```pycon
@@ -209,10 +210,8 @@ enum_test.py: error: argument --food: invalid choice: 'eggs' (choose from ['ham'
 
 **NOTE**: enums are passed by name on the command line and not by value.
 
-- compatibility with both `dataclass` and `attrs`
-- `args` supports all `field` and `attr.ib` arguments.
-
-***(experimental)*** Have a `Sequence` or a `List` of something to
+## Sequences, Optionals, and Literals
+Have a `Sequence` or a `List` of something to
 automatically use `nargs`:
 
 
@@ -240,12 +239,50 @@ class Args:
     arg: Sequence[int] = arg(default=(), positional=True)
 ```
 
+`Optional` arguments default to `None`:
+
+```python
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Optional
+from datargs import parse
+
+@dataclass
+class Args:
+    path: Optional[Path] = None
+
+args = parse(Args, ["--path", "foo.txt"])
+assert args.path == Path("foo.txt")
+
+args = parse(Args, [])
+assert args.path is None
+```
+
+And `Literal` can be used to specify choices:
+
+```python
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Literal
+from datargs import parse
+
+@dataclass
+class Args:
+    path: Literal[Path("foo.txt"), Path("bar.txt")]
+
+args = parse(Args, ["--path", "foo.txt"])
+assert args.path == Path("foo.txt")
+
+# Throws an error!
+args = parse(Args, ["--path", "bad-option.txt"])
+```
+
 ### Sub Commands
 
 No need to specify a useless `dest` to dispatch on different commands.
 A `Union` of dataclasses/attrs classes automatically becomes a group of subparsers.
 The attribute holding the `Union` holds the appropriate instance
-upon parsing, making your code type-safe: 
+upon parsing, making your code type-safe:
 
 ```python
 import typing, logging
@@ -266,7 +303,7 @@ class Pip:
 
 args = parse(Pip, ["--log", "debug.log", "install", "my_package"])
 print(args)
-# prints: Pip(action=Install(package='my_package'), log='debug.log') 
+# prints: Pip(action=Install(package='my_package'), log='debug.log')
 
 # Consume arguments:
 if args.log:
@@ -281,7 +318,7 @@ else:
 ```
 Command name is derived from class name. To change this, use the `name` parameter to `@argsclass`.
 
-As with all other parameters to `add_parser`, 
+As with all other parameters to `add_parser`,
 `aliases` can be passed as a key in `parser_params` to add subcommand aliases.
 
 **NOTE**: if the commented-out line above does not issue a type error, try adding an `@dataclass/@attr.s`
@@ -312,7 +349,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--url")
     return parser.parse_args()
- 
+
 def main():
     args = parse_args()
     print(args.url)
@@ -369,7 +406,7 @@ If you find a bug on a certain platform (or any other bug), please report it.
 ### Why are mutually exclusive options not supported?
 
 This library is based on the idea of a one-to-one correspondence between most parsers
-and simple classes. Conceptually, mutually exclusive options are analogous to 
+and simple classes. Conceptually, mutually exclusive options are analogous to
 [sum types](https://en.wikipedia.org/wiki/Tagged_union), just like [subparsers](#sub-commands) are,
 but writing a class for each flag is not ergonomic enough.
 Contact me if you want this feature or if you come up with a better solution.
