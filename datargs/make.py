@@ -101,6 +101,13 @@ def field_name_to_arg_name(name: str, positional=False) -> str:
 SpecialRule = Callable[[Type["TypeDispatch"], RecordField], Optional[Action]]
 
 
+def is_subclass(cls, parent):
+    try:
+        return cls is parent or issubclass(cls, parent)
+    except TypeError:
+        return False
+
+
 class TypeDispatch:
 
     dispatch: Dict[type, AddArgFunc] = {}
@@ -108,9 +115,11 @@ class TypeDispatch:
 
     @classmethod
     def add_arg(cls, field: RecordField, override: dict):
-        dispatch_type = get_origin(field.type) or field.type
+        typ = override.get("type", None or field.type)
+        override = {**override, "type": typ}
+        dispatch_type = get_origin(typ) or typ
         for typ, func in cls.dispatch.items():
-            if issubclass(dispatch_type, typ):
+            if is_subclass(dispatch_type, typ):
                 return func(field, override)
         return add_any(field, override)
 
@@ -118,7 +127,7 @@ class TypeDispatch:
     def add_simple_for_type(cls, field: RecordField, typ: type, override: dict):
         override = {**override, "type": typ}
         for rule_typ, func in cls.dispatch.items():
-            if issubclass(typ, rule_typ):
+            if is_subclass(typ, rule_typ):
                 return func(field, override)
         return add_any(field, override)
 
@@ -166,7 +175,7 @@ def add_default(name, field: RecordField, override: dict) -> Action:
         **common_kwargs(field),
         **override,
     }
-    if not field.is_positional:
+    if not field.is_positional and (override.get("default", object()) is not None):
         override["required"] = field.is_required()
     return Action(kwargs=override, args=get_option_strings(name, field))
 
@@ -193,7 +202,18 @@ def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
     else:
         nargs = "+" if field.is_required() else "*"
     return TypeDispatch.add_simple_for_type(
-        field, field.type.__args__[0], dict(**override, nargs=nargs)
+        field,
+        (override.get("type") or field.type).__args__[0],
+        dict(**override, nargs=nargs),
+    )
+
+
+@TypeDispatch.register(Union)
+def union_arg(name: str, field: RecordField, override: dict) -> Action:
+
+    inner_type = (set(field.type.__args__) - {type(None)}).pop()
+    return TypeDispatch.add_arg(
+        field, {**override, "default": None, "type": inner_type}
     )
 
 
@@ -206,6 +226,7 @@ def bool_arg(name: str, field: RecordField, override: dict) -> Action:
         if field.default and field.has_default()
         else "store_true",
     }
+    kwargs.pop("type", None)
     return Action(
         args=get_option_strings(name, field),
         kwargs=kwargs,
