@@ -73,7 +73,13 @@ from typing import (
 
 from boltons.strutils import camel2under
 
-from .compat import RecordField, RecordClass, NotARecordClass, DatargsParams
+from .compat import (
+    RecordField,
+    RecordClass,
+    NotARecordClass,
+    DatargsParams,
+    is_optional,
+)
 
 
 @dataclass
@@ -101,16 +107,7 @@ class TypeDispatch:
     special_rules: List[SpecialRule] = []
 
     @classmethod
-    def register_special(cls, func: SpecialRule):
-        cls.special_rules.append(func)
-        return func
-
-    @classmethod
     def add_arg(cls, field: RecordField, override: dict):
-        for rule in cls.special_rules:
-            action = rule(cls, field)
-            if action:
-                return action
         dispatch_type = get_origin(field.type) or field.type
         for typ, func in cls.dispatch.items():
             if issubclass(dispatch_type, typ):
@@ -181,29 +178,6 @@ def call_func_with_matching_kwargs(func: Callable[..., T], *args, **kwargs) -> T
     sig = signature(func)
     new_kwargs = {key: value for key, value in kwargs.items() if key in sig.parameters}
     return func(*args, **new_kwargs)
-
-
-def is_optional(typ):
-    return (
-        getattr(typ, "__origin__", None) is Union
-        and len(typ.__args__) == 2
-        and type(None) in typ.__args__
-    )
-
-
-@TypeDispatch.register_special
-def optional_rule(dispatch: Type[TypeDispatch], field: RecordField) -> Optional[Action]:
-    if is_optional(field.type):
-        inner_type = (set(field.type.__args__) - {type(None)}).pop()
-
-        update = {
-            "type": inner_type,
-            "default": None,
-        }
-        for key, value in update.items():
-            object.__setattr__(field._field, key, value)
-        return dispatch.add_arg(field, {})
-    return None
 
 
 @TypeDispatch.register(str)

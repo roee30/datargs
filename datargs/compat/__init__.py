@@ -4,7 +4,7 @@ Module for uniform treatment of dataclasses and attrs classes.
 import dataclasses
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TypeVar, Generic, Mapping, Type
+from typing import TypeVar, Generic, Mapping, Type, Union
 
 from datargs.meta import AbstractClassProperty
 
@@ -24,9 +24,20 @@ class RecordField(Generic[FieldType]):
     """
 
     _field: FieldType
+    NONE = object()
+
+    @classmethod
+    def or_(cls, x, y):
+        return y if x is cls.NONE else x
 
     def __init__(self, field):
         self._field = field
+        self._default = self.NONE
+        self._type = self.NONE
+        if is_optional(field.type):
+            self._default = None
+            inner_type = (set(field.type.__args__) - {type(None)}).pop()
+            self._type = inner_type
 
     @abstractmethod
     def is_required(self) -> bool:
@@ -44,7 +55,7 @@ class RecordField(Generic[FieldType]):
 
     @property
     def default(self):
-        return self._field.default
+        return self.or_(self._default, self._field.default)
 
     @property
     def name(self):
@@ -52,7 +63,7 @@ class RecordField(Generic[FieldType]):
 
     @property
     def type(self):
-        return self._field.type
+        return self.or_(self._type, self._field.type)
 
     @property
     def metadata(self):
@@ -69,7 +80,7 @@ class DataField(RecordField[dataclasses.Field]):
     """
 
     def is_required(self) -> bool:
-        return self._field.default is dataclasses.MISSING
+        return self.default is dataclasses.MISSING
 
 
 class NotARecordClass(Exception):
@@ -170,3 +181,11 @@ except ImportError:
 else:
     # import class to register it in RecordClass._implementors
     import datargs.compat.attrs
+
+
+def is_optional(typ):
+    return (
+        getattr(typ, "__origin__", None) is Union
+        and len(typ.__args__) == 2
+        and type(None) in typ.__args__
+    )
