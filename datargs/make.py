@@ -333,6 +333,10 @@ class DatargsSubparsers(_SubParsersAction):
         new_ns = Namespace()
         name, *_ = values
         super().__call__(parser, new_ns, values)
+
+        if hasattr(new_ns, self.dest):
+            delattr(new_ns, self.dest)
+
         setattr(namespace, self.__name, self._command_type_map[name](**vars(new_ns)))
 
 
@@ -371,6 +375,17 @@ def add_subparsers(
     sub_parser_classes: Sequence[type],
 ):
     # noinspection PyArgumentList
+
+    sub_commands_params = top_class.sub_commands_params
+
+    # Mark subparsers as required by default
+    if "required" not in sub_commands_params:
+        sub_commands_params["required"] = True
+
+    # `required=True` results in a runtime error if `dest` is not set
+    if "dest" not in sub_commands_params:
+        sub_commands_params["dest"] = f"{sub_parsers_field.name} (positional)"
+
     subparsers = cast(
         DatargsSubparsers,
         parser.add_subparsers(

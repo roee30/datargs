@@ -99,7 +99,9 @@ class RecordClass(Generic[FieldType]):
 
     @property
     def datargs_params(self) -> DatargsParams:
-        return getattr(self.cls, "__datargs_params__", DatargsParams())
+        if not hasattr(self.cls, "__datargs_params__"):
+            self.cls.__datargs_params__ = DatargsParams()
+        return self.cls.__datargs_params__
 
     @property
     def parser_params(self):
