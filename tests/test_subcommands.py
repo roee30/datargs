@@ -59,6 +59,11 @@ def test_subcommands():
     assert result.action.verbose
     assert not result.verbose
 
+    # When a required argument is missing, argparse should print an error and trigger a
+    # system exit
+    with raises(SystemExit):
+        parse(Pip, [])
+
 
 def test_union_no_dataclass():
     @dataclass
