@@ -17,6 +17,13 @@ class DatargsParams:
     sub_commands: dict = dataclasses.field(default_factory=dict)
     name: str = None
 
+    def __post_init__(self, *args, **kwargs):
+        for key, value in (
+            ("required", True),
+            ("dest", "__datargs_dest__"),
+        ):
+            self.sub_commands.setdefault(key, value)
+
 
 class RecordField(Generic[FieldType]):
     """
@@ -99,9 +106,7 @@ class RecordClass(Generic[FieldType]):
 
     @property
     def datargs_params(self) -> DatargsParams:
-        if not hasattr(self.cls, "__datargs_params__"):
-            self.cls.__datargs_params__ = DatargsParams()
-        return self.cls.__datargs_params__
+        return getattr(self.cls, "__datargs_params__", DatargsParams())
 
     @property
     def parser_params(self):

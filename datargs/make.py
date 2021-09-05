@@ -376,16 +376,6 @@ def add_subparsers(
 ):
     # noinspection PyArgumentList
 
-    sub_commands_params = top_class.sub_commands_params
-
-    # Mark subparsers as required by default
-    if "required" not in sub_commands_params:
-        sub_commands_params["required"] = True
-
-    # `required=True` results in a runtime error if `dest` is not set
-    if "dest" not in sub_commands_params:
-        sub_commands_params["dest"] = f"{sub_parsers_field.name} (positional)"
-
     subparsers = cast(
         DatargsSubparsers,
         parser.add_subparsers(
