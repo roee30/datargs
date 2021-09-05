@@ -17,6 +17,13 @@ class DatargsParams:
     sub_commands: dict = dataclasses.field(default_factory=dict)
     name: str = None
 
+    def __post_init__(self, *args, **kwargs):
+        for key, value in (
+            ("required", True),
+            ("dest", "__datargs_dest__"),
+        ):
+            self.sub_commands.setdefault(key, value)
+
 
 class RecordField(Generic[FieldType]):
     """

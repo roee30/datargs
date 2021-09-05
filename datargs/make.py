@@ -333,6 +333,10 @@ class DatargsSubparsers(_SubParsersAction):
         new_ns = Namespace()
         name, *_ = values
         super().__call__(parser, new_ns, values)
+
+        if hasattr(new_ns, self.dest):
+            delattr(new_ns, self.dest)
+
         setattr(namespace, self.__name, self._command_type_map[name](**vars(new_ns)))
 
 
@@ -371,6 +375,7 @@ def add_subparsers(
     sub_parser_classes: Sequence[type],
 ):
     # noinspection PyArgumentList
+
     subparsers = cast(
         DatargsSubparsers,
         parser.add_subparsers(
