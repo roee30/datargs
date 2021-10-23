@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "datargs"
-version = "0.10.0"
+version = "0.10.1"
 description = "Declarative, type-safe command line argument parsers from dataclasses and attrs classes"
 authors = ["Roee Nizan <roeen30@gmail.com>"]
 license = "MIT"
@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Environment :: Console",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -23,10 +22,10 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-dataclasses = {version = "^0.6", python = "3.6"}
+python = "^3.7"
 attrs = {version = "^20.2.0", optional = true }
 boltons = "^20.2.1"
+typing-extensions = {version = "^3.10.0", python = "<3.8"}
 
 [tool.poetry.extras]
 attrs = ["attrs"]
@@ -37,6 +36,8 @@ pytest = "^6.0.2"
 attrs = "^20.2.0"
 ipdb = "^0.13.3"
 pdbpp = "^0.10.2"
+tox = "^3.24.4"
+tox-pyenv = "^1.1.0"
 
 [build-system]
 requires = ["poetry>=0.12"]

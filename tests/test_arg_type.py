@@ -1,9 +1,10 @@
 from abc import ABC
+import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional, Literal
+from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional
 
 import attr
 import pytest
@@ -322,7 +323,13 @@ def test_nargs_attrs():
     assert args.nums == [1, 2]
 
 
+is_pre_38 = sys.version_info < (3, 8)
+
+
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_literal_int(factory):
+    from typing import Literal
+
     @factory
     class Args:
         arg: Literal[0, 1, 2]
@@ -334,7 +341,10 @@ def test_literal_int(factory):
         args = parse_test(Args, ["--arg", "5"])
 
 
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_literal_str(factory):
+    from typing import Literal
+
     @factory
     class Args:
         arg: Literal["option1", "option2"]
@@ -346,7 +356,10 @@ def test_literal_str(factory):
         args = parse_test(Args, ["--arg", "option3"])
 
 
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_literal_mixed(factory):
+    from typing import Literal
+
     @factory
     class Args:
         arg: Literal[0, "hello"]
@@ -355,7 +368,10 @@ def test_literal_mixed(factory):
         args = parse_test(Args, ["--arg", 0])
 
 
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_optional_literal(factory):
+    from typing import Literal
+
     @factory
     class Args:
         arg: Optional[Literal[0, 1, 2]]
@@ -370,7 +386,10 @@ def test_optional_literal(factory):
     assert args.arg == None
 
 
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_literal_override_choices():
+    from typing import Literal
+
     @dataclass
     class Args:
         arg: Literal[0, 1, 2] = arg(choices=(0, 1))
@@ -382,7 +401,10 @@ def test_literal_override_choices():
         args = parse_test(Args, ["--arg", "2"])
 
 
+@pytest.mark.skipif(is_pre_38, reason="requires python3.8 or higher")
 def test_literal_bad_choices():
+    from typing import Literal
+
     @dataclass
     class Args:
         arg: Literal[0, 1, 2] = arg(choices=(0, 1, 2, 3))

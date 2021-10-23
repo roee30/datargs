@@ -55,6 +55,7 @@ from dataclasses import dataclass, MISSING
 from enum import Enum
 from functools import wraps, partial
 from inspect import signature
+from contextlib import suppress
 from typing import (
     Callable,
     Dict,
@@ -68,9 +69,37 @@ from typing import (
     cast,
     get_type_hints,
     List,
-    get_origin,
-    Literal,
 )
+
+try:
+    from typing import (
+        get_origin,
+        Literal,
+    )
+except ImportError:
+    Literal = object()
+
+    def get_origin(tp):
+        """Get the unsubscripted version of a type.
+        This supports generic types, Callable, Tuple, Union, Literal, Final, ClassVar
+        and Annotated. Return None for unsupported types. Examples::
+            get_origin(Literal[42]) is Literal
+            get_origin(int) is None
+            get_origin(ClassVar[int]) is ClassVar
+            get_origin(Generic) is Generic
+            get_origin(Generic[T]) is Generic
+            get_origin(Union[T, int]) is Union
+            get_origin(List[Tuple[T, T]][int]) == list
+            get_origin(P.args) is P
+        """
+        with suppress(AttributeError):
+            return tp.__origin__
+        import typing as t
+
+        if tp is t.Generic:
+            return t.Generic
+        return None
+
 
 from boltons.strutils import camel2under
 
@@ -119,6 +148,7 @@ class TypeDispatch:
         typ = override.get("type", field.type)
         override = {**override, "type": typ}
         dispatch_type = get_origin(typ) or typ
+        assert dispatch_type, f"cannot find origin for type {typ!r}"
         for typ, func in cls.dispatch.items():
             if is_subclass(dispatch_type, typ):
                 return func(field, override)
