@@ -3,3 +3,5 @@
 *.egg-info
 __pycache__
 dist
+.python-version
+.tox
