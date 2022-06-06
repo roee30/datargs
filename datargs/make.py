@@ -198,7 +198,11 @@ def add_default(name, field: RecordField, override: dict) -> Action:
         **common_kwargs(field),
         **override,
     }
-    if not field.is_positional and (override.get("default", object()) is not None):
+    if (
+        override.get("nargs") != "*"
+        and not field.is_positional
+        and (override.get("default", object()) is not None)
+    ):
         override["required"] = field.is_required()
     return Action(kwargs=override, args=get_option_strings(name, field))
 
@@ -221,9 +225,11 @@ def add_str(name, field, override: dict):
 def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
     nargs = field.metadata.get("nargs")
     if nargs:
-        assert nargs in ("+", "?") or isinstance(nargs, int)
+        assert nargs in ("?", "*", "+") or isinstance(nargs, int)
     else:
         nargs = "+" if field.is_required() else "*"
+    if nargs == "*" and field.is_required():
+        override = {"default": [], **override}
     new_type = (override.get("type") or field.type).__args__[0]
     return TypeDispatch.add_arg(
         field,
