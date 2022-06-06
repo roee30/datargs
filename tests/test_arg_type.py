@@ -305,22 +305,48 @@ def test_argsclass_on_decorator():
     assert description in help_str
 
 
-def test_nargs_dataclass():
+def test_plus_nargs_dataclass():
     @dataclass()
     class Nargs:
-        nums: int = arg(nargs="+")
+        nums: Sequence[int] = arg(nargs="+")
 
     args = parse_test(Nargs, ["--nums", "1", "2"])
     assert args.nums == [1, 2]
 
 
-def test_nargs_attrs():
+def test_plus_nargs_attrs():
     @attr.s
     class Nargs:
-        nums: int = attr.ib(metadata=dict(nargs="+"))
+        nums: Sequence[int] = attr.ib(metadata=dict(nargs="+"))
 
     args = parse_test(Nargs, ["--nums", "1", "2"])
     assert args.nums == [1, 2]
+
+
+def test_star_nargs_dataclass():
+    @dataclass()
+    class Nargs:
+        nums: Sequence[int] = arg(nargs="*")
+
+    args = parse_test(Nargs, ["--nums", "1", "2"])
+    assert args.nums == [1, 2]
+    args = parse_test(Nargs, ["--nums"])
+    assert args.nums == []
+    args = parse_test(Nargs, [])
+    assert args.nums == []
+
+
+def test_star_nargs_attrs():
+    @attr.s
+    class Nargs:
+        nums: Sequence[int] = attr.ib(metadata=dict(nargs="*"))
+
+    args = parse_test(Nargs, ["--nums", "1", "2"])
+    assert args.nums == [1, 2]
+    args = parse_test(Nargs, ["--nums"])
+    assert args.nums == []
+    args = parse_test(Nargs, [])
+    assert args.nums == []
 
 
 is_pre_38 = sys.version_info < (3, 8)
