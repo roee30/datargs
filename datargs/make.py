@@ -546,7 +546,7 @@ def arg(
     metavar=None,
     aliases: Sequence[str] = (),
     **kwargs,
-):
+) -> Any:
     """
     Helper method to more easily add parsing-related behavior.
     Supports aliases:
