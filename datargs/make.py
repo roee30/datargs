@@ -109,6 +109,7 @@ from .compat import (
     NotARecordClass,
     DatargsParams,
     is_optional,
+    UnionType,
 )
 
 
@@ -118,8 +119,10 @@ class Action:
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
 
-DispatchCallback = Callable[[str, RecordField, dict], Action]
-AddArgFunc = Callable[[RecordField, dict], Action]
+# make an action from a field
+DispatchCallback = Callable[[RecordField, dict], Action]
+# make an action from a field and its formatted name
+DispatchCallbackWithFormattedName = Callable[[str, RecordField, dict], Action]
 
 
 def field_name_to_arg_name(name: str, positional=False) -> str:
@@ -140,7 +143,7 @@ def is_subclass(cls, parent):
 
 class TypeDispatch:
 
-    dispatch: Dict[type, AddArgFunc] = {}
+    dispatch: Dict[type, DispatchCallback] = {}
     special_rules: List[SpecialRule] = []
 
     @classmethod
@@ -155,15 +158,34 @@ class TypeDispatch:
         return add_any(field, override)
 
     @classmethod
+    def just_register(cls, typ):
+        """
+        Register a type hook.
+        """
+
+        def decorator(func):
+            cls.dispatch[typ] = func
+            return func
+
+        return decorator
+
+    @classmethod
     def register(cls, typ):
-        def decorator(func: DispatchCallback) -> AddArgFunc:
-            cls.dispatch[typ] = new_func = wraps(func)(add_name_formatting(func))
+        """
+        Register a hook for type ``typ``.
+        Expects a function that expects a formatted field name.
+        Returns a function with that formatted name already partially applied to the original function.
+        """
+
+        def decorator(func: DispatchCallbackWithFormattedName) -> DispatchCallback:
+            new_func = add_name_formatting(func)
+            cls.just_register(typ)(new_func)
             return new_func
 
         return decorator
 
 
-def add_name_formatting(func: DispatchCallback) -> AddArgFunc:
+def add_name_formatting(func: DispatchCallbackWithFormattedName) -> DispatchCallback:
     @wraps(func)
     def new_func(field: RecordField, override: dict):
         return func(
@@ -222,7 +244,7 @@ def add_str(name, field, override: dict):
 
 
 @TypeDispatch.register(Sequence)
-def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
+def sequence_arg(_name: str, field: RecordField, override: dict) -> Action:
     nargs = field.metadata.get("nargs")
     if nargs:
         assert nargs in ("?", "*", "+") or isinstance(nargs, int)
@@ -237,8 +259,9 @@ def sequence_arg(name: str, field: RecordField, override: dict) -> Action:
     )
 
 
+@TypeDispatch.just_register(UnionType)
 @TypeDispatch.register(Union)
-def union_arg(name: str, field: RecordField, override: dict) -> Action:
+def union_arg(_name: str, field: RecordField, override: dict) -> Action:
     inner_type = (set(field.type.__args__) - {type(None)}).pop()
     return TypeDispatch.add_arg(
         field, {**override, "default": None, "type": inner_type}
@@ -383,7 +406,9 @@ def _make_parser(record_class: RecordClass, parser: ParserType = None) -> Parser
     for name, field in record_class.fields_dict().items():
         sub_commands = None
         try:
-            if field.type.__origin__ is Union and not is_optional(field.type):
+            if (
+                isinstance(field.type, UnionType) or field.type.__origin__ is Union
+            ) and not is_optional(field.type):
                 sub_commands = field.type.__args__
         except AttributeError:
             pass
