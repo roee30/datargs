@@ -8,6 +8,13 @@ from typing import TypeVar, Generic, Mapping, Type, Union
 
 from datargs.meta import AbstractClassProperty
 
+try:
+    from types import UnionType
+except ImportError:
+    # In this case, create a type such that ``isinstance(value, typ)`` will always return False
+    UnionType = type("UniqueMarkerType", (), {})
+
+
 FieldType = TypeVar("FieldType")
 
 
@@ -171,6 +178,15 @@ class DataClass(RecordClass[dataclasses.Field]):
         return {field.name: self.get_field(field) for field in fields}
 
 
+def is_optional(typ):
+    assert typ
+    return (
+        (isinstance(typ, UnionType) or getattr(typ, "__origin__", None) is Union)
+        and len(typ.__args__) == 2
+        and type(None) in typ.__args__
+    ) or ()
+
+
 try:
     import attr
 except ImportError:
@@ -178,11 +194,3 @@ except ImportError:
 else:
     # import class to register it in RecordClass._implementors
     import datargs.compat.attrs
-
-
-def is_optional(typ):
-    return (
-        getattr(typ, "__origin__", None) is Union
-        and len(typ.__args__) == 2
-        and type(None) in typ.__args__
-    )

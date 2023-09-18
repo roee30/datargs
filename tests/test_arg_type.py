@@ -245,6 +245,18 @@ def test_optional(factory):
     assert args.arg == 1
 
 
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+def test_optional_with_union_operator(factory):
+    @factory
+    class TestOptional:
+        arg: int | None = None
+
+    args = parse_test(TestOptional, [])
+    assert args.arg is None
+    args = parse_test(TestOptional, ["--arg", "1"])
+    assert args.arg == 1
+
+
 def test_kwargs(factory):
     @factory(order=True)
     class Order:

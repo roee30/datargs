@@ -1,8 +1,12 @@
+import sys
+
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import _SubParsersAction
 from typing import Union
 
 from dataclasses import dataclass
+
+import pytest
 from pytest import raises
 
 from datargs import make_parser, argsclass, arg, parse
@@ -138,3 +142,28 @@ def test_hyphen():
     assert result.action.baz == "x"
     result = parse(Prog, ["bar-foo", "x"], parser=ParserTest())
     assert result.action.spam == "x"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Test requires Python 3.10+")
+def test_union_operator():
+    @argsclass(name="foo")
+    class Install:
+        package: str = arg(positional=True)
+
+    @argsclass(name="bar")
+    class Help:
+        command: str = arg(positional=True)
+
+    @argsclass
+    class Pip:
+        action: Install | Help
+
+    result = parse(Pip, ["foo", "x"], parser=ParserTest())
+    assert result.action.package == "x"
+    with raises(ParserError):
+        parse(Pip, ["install", "x"], parser=ParserTest())
+
+    result = parse(Pip, ["bar", "x"], parser=ParserTest())
+    assert result.action.command == "x"
+    with raises(ParserError):
+        parse(Pip, ["help", "x"], parser=ParserTest())
