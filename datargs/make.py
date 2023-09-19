@@ -204,7 +204,7 @@ def add_any(name: str, field: RecordField, extra: dict) -> Action:
 
 def get_option_strings(name: str, field: RecordField):
     aliases = field.metadata.get("aliases", [])
-    if field.metadata.get("aliases_overrides", False) and aliases:
+    if field.aliases_overrides and aliases:
         return aliases
     return [name, *aliases]
 
@@ -229,6 +229,8 @@ def add_default(name, field: RecordField, override: dict) -> Action:
         and (override.get("default", object()) is not None)
     ):
         override["required"] = field.is_required()
+    if field.aliases_overrides and field.metadata.get("aliases", []):
+        override['dest'] = name.removeprefix('--')
     return Action(kwargs=override, args=get_option_strings(name, field))
 
 
