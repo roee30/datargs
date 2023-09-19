@@ -203,11 +203,14 @@ def add_any(name: str, field: RecordField, extra: dict) -> Action:
 
 
 def get_option_strings(name: str, field: RecordField):
-    return [name, *field.metadata.get("aliases", [])]
+    aliases = field.metadata.get("aliases", [])
+    if field.metadata.get("aliases_overrides", False) and aliases:
+        return aliases
+    return [name, *aliases]
 
 
 def common_kwargs(field: RecordField):
-    return {"type": field.type, **subdict(field.metadata, ["aliases", "positional"])}
+    return {"type": field.type, **subdict(field.metadata, ["aliases", "positional", "aliases_overrides"])}
 
 
 def subdict(dct, remove_keys):
@@ -570,6 +573,7 @@ def arg(
     help=None,
     metavar=None,
     aliases: Sequence[str] = (),
+    aliases_overrides: bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -603,6 +607,7 @@ def arg(
                 metavar=metavar,
                 aliases=aliases,
                 positional=positional,
+                aliases_overrides=aliases_overrides
             )
         ),
         default=default,
