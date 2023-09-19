@@ -562,6 +562,7 @@ def make_class(
 
 
 def arg(
+    *aliases: str,
     positional=False,
     nargs=None,
     const=None,
@@ -569,7 +570,6 @@ def arg(
     choices=None,
     help=None,
     metavar=None,
-    aliases: Sequence[str] = (),
     **kwargs,
 ) -> Any:
     """
@@ -577,7 +577,7 @@ def arg(
     Supports aliases:
     >>> @dataclass
     ... class Args:
-    ...     num: int = arg(aliases=["-n"])
+    ...     num: int = arg("-n")
     >>> parse(Args, ["--num", "0"])
     Args(num=0)
     >>> parse(Args, ["-n", "0"])
