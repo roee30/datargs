@@ -575,7 +575,7 @@ def arg(
     help=None,
     metavar=None,
     aliases: Sequence[str] = (),
-    aliases_overrides: bool = False,
+    aliases_overrides: bool = True,
     **kwargs,
 ) -> Any:
     """
