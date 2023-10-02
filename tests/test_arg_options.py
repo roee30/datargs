@@ -60,7 +60,7 @@ def test_default():
 def test_alias():
     @dataclass
     class Args:
-        num: int = arg(aliases=["-n"])
+        num: int = arg("-n")
 
     args = parse(Args, ["-n", "0"])
     assert args.num == 0
