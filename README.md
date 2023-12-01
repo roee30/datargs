@@ -133,14 +133,14 @@ optional arguments:
 Args(retries=4)
 ```
 
-`arg` is a replacement for `field` that puts `add_argument()` parameters in `metadata`.
-Use it to save precious keystrokes:
+`arg` is a replacement for `field` that puts `add_argument()` parameters in `metadata`
+and makes `aliases` behaves like in the original method. Use it to save precious keystrokes:
 ```pycon
 >>> from dataclasses import dataclass
 >>> from datargs import parse, arg
 >>> @dataclass
 ... class Args:
-...     retries: int = arg(default=3, help="number of retries", aliases=["-r"], metavar="RETRIES")
+...     retries: int = arg("-r", default=3, help="number of retries", metavar="RETRIES")
 >>> parse(Args, ["-h"])
 # exactly the same as before
 ```
