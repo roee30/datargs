@@ -4,7 +4,16 @@ Module for uniform treatment of dataclasses and attrs classes.
 import dataclasses
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TypeVar, Generic, Mapping, Type, Union
+from typing import (
+    TypeVar,
+    Generic,
+    Mapping,
+    Type,
+    Union,
+    get_type_hints,
+    Optional,
+    cast,
+)
 
 from datargs.meta import AbstractClassProperty
 
@@ -22,7 +31,7 @@ FieldType = TypeVar("FieldType")
 class DatargsParams:
     parser: dict = dataclasses.field(default_factory=dict)
     sub_commands: dict = dataclasses.field(default_factory=dict)
-    name: str = None
+    name: Optional[str] = None
 
     def __post_init__(self, *args, **kwargs):
         for key, value in (
@@ -38,10 +47,12 @@ class RecordField(Generic[FieldType]):
     """
 
     _field: FieldType
+    _cls: type
     NONE = object()
 
-    def __init__(self, field):
+    def __init__(self, field, cls=None):
         self._field = field
+        self._cls = cls
 
     @abstractmethod
     def is_required(self) -> bool:
@@ -67,7 +78,10 @@ class RecordField(Generic[FieldType]):
 
     @property
     def type(self):
-        return self._field.type
+        typ = self._field.type
+        if isinstance(typ, str):
+            return get_type_hints(self._cls)[self.name]
+        return typ
 
     @property
     def metadata(self):
@@ -158,11 +172,11 @@ class RecordClass(Generic[FieldType]):
         )
 
     @classmethod
-    def get_field(cls, field: FieldType):
+    def get_field(cls, field: FieldType, record_class):
         """
         Wrap field with field classes with a uniform interface.
         """
-        return cls.field_wrapper_type(field)
+        return cast(FieldType, cls.field_wrapper_type)(field, record_class)
 
 
 class DataClass(RecordClass[dataclasses.Field]):
@@ -175,7 +189,7 @@ class DataClass(RecordClass[dataclasses.Field]):
 
     def fields_dict(self) -> Mapping[str, FieldType]:
         fields = dataclasses.fields(self.cls)
-        return {field.name: self.get_field(field) for field in fields}
+        return {field.name: self.get_field(field, self.cls) for field in fields}
 
 
 def is_optional(typ):
@@ -184,7 +198,7 @@ def is_optional(typ):
         (isinstance(typ, UnionType) or getattr(typ, "__origin__", None) is Union)
         and len(typ.__args__) == 2
         and type(None) in typ.__args__
-    ) or ()
+    )
 
 
 try:
