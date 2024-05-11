@@ -16,6 +16,6 @@ else:
 
         def fields_dict(self):
             return {
-                name: self.get_field(field)
+                name: self.get_field(field, self.cls)
                 for name, field in attr.fields_dict(self.cls).items()
             }
