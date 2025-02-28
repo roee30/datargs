@@ -70,7 +70,16 @@ class RecordField(Generic[FieldType]):
 
     @property
     def default(self):
+        if self._field.default is not dataclasses.MISSING:
+            return self._field.default
+        if self._field.default_factory is not dataclasses.MISSING:
+            return self._field.default_factory()
+        # in this case, normally None will be returned
         return self._field.default
+
+    @property
+    def default_factory(self):
+        return self._field.default_factory
 
     @property
     def name(self):
@@ -98,7 +107,8 @@ class DataField(RecordField[dataclasses.Field]):
     """
 
     def is_required(self) -> bool:
-        return self.default is dataclasses.MISSING
+        return self.default is dataclasses.MISSING and \
+            self.default_factory is dataclasses.MISSING
 
 
 class NotARecordClass(Exception):

@@ -1,7 +1,7 @@
 from abc import ABC
 import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Type, Sequence, Text, NoReturn, TypeVar, Optional
@@ -79,12 +79,12 @@ def test_bool(factory):
 
     @factory
     class TestStoreFalse:
-        store_false: bool = True
+        default_true: bool = True
 
     args = parse_test(TestStoreFalse, [])
-    assert args.store_false
-    args = parse_test(TestStoreFalse, ["--store-false"])
-    assert not args.store_false
+    assert args.default_true
+    args = parse_test(TestStoreFalse, ["--no-default-true"])
+    assert not args.default_true
 
 
 def test_str(factory):
@@ -359,6 +359,19 @@ def test_star_nargs_attrs():
     assert args.nums == []
     args = parse_test(Nargs, [])
     assert args.nums == []
+
+def test_default_factory_dataclass():
+    class UserClass:
+        def __init__(self, value=1):
+            self.value = value
+    @dataclass()
+    class DefaultFactory:
+        user_class: UserClass = field(default_factory=UserClass)
+
+    args = parse_test(DefaultFactory, ["--user-class", "2"])
+    assert args.user_class.value == "2"
+    args = parse_test(DefaultFactory, [])
+    assert args.user_class.value == 1
 
 
 is_pre_38 = sys.version_info < (3, 8)

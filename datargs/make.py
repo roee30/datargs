@@ -42,6 +42,7 @@ SystemExit: 2
 Specifying enums by name is not currently supported.
 """
 import dataclasses
+import argparse
 
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from argparse import (
@@ -288,19 +289,26 @@ def literal_arg(name: str, field: RecordField, override: dict) -> Action:
         field, {**override, "choices": choices, "type": inner_type}
     )
 
+class NegateAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, option_string[2:4] != 'no')
+
 
 @TypeDispatch.register(bool)
 def bool_arg(name: str, field: RecordField, override: dict) -> Action:
     kwargs = {
         **subdict(common_kwargs(field), ["type"]),
         **override,
-        "action": "store_false"
-        if field.default and field.has_default()
-        else "store_true",
+        "action": NegateAction,
+        "nargs": 0, # required for NegateAction
+        "default": field.default if field.has_default() else None,
     }
     kwargs.pop("type", None)
+
+    negate_name = f"--no-{name[2:]}"
+    args = [*get_option_strings(name, field), negate_name]
     return Action(
-        args=get_option_strings(name, field),
+        args=args,
         kwargs=kwargs,
     )
 
@@ -478,7 +486,8 @@ def parse(cls: Type[T], args: Optional[Sequence[str]] = None, *, parser=None) ->
     >>> parse(Args, ["--num", "1"])
     Args(is_flag=False, num=1)
     """
-    result = vars(make_parser(cls, parser=parser).parse_args(args))
+    parser = make_parser(cls, parser=parser)
+    result = vars(parser.parse_args(args))
     try:
         command_dest = cls.__datargs_params__.sub_commands.get("dest", None)
     except AttributeError:
