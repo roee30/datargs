@@ -41,6 +41,7 @@ SystemExit: 2
 
 Specifying enums by name is not currently supported.
 """
+
 import dataclasses
 
 # noinspection PyUnresolvedReferences,PyProtectedMember
@@ -128,7 +129,7 @@ DispatchCallbackWithFormattedName = Callable[[str, RecordField, dict], Action]
 def field_name_to_arg_name(name: str, positional=False) -> str:
     if positional:
         return name
-    return f"--{name.replace('_','-')}"
+    return f"--{name.replace('_', '-')}"
 
 
 SpecialRule = Callable[[Type["TypeDispatch"], RecordField], Optional[Action]]
@@ -142,7 +143,6 @@ def is_subclass(cls, parent):
 
 
 class TypeDispatch:
-
     dispatch: Dict[type, DispatchCallback] = {}
     special_rules: List[SpecialRule] = []
 
@@ -279,9 +279,9 @@ def literal_arg(name: str, field: RecordField, override: dict) -> Action:
     else:
         choices = literal_options
 
-    assert (
-        len(set(map(type, choices))) == 1
-    ), "All choices in literal must have the same type!"
+    assert len(set(map(type, choices))) == 1, (
+        "All choices in literal must have the same type!"
+    )
     inner_type = type(typ.__args__[0])
 
     return TypeDispatch.add_arg(
@@ -544,12 +544,13 @@ def make_class(
     try:
         RecordClass.wrap_class(cls)
     except NotARecordClass:
-        for key, value in cls.__dict__.items():
+        for key, value in list(cls.__dict__.items()):
             if not isinstance(value, dataclasses.Field) or value.default is not MISSING:
                 continue
             typ = value.type or get_type_hints(cls)[key]
             if typ is bool:
                 value.default = False
+
         new_cls = dataclass(*args, **kwargs)(cls)
     else:
         new_cls = cls
@@ -570,6 +571,7 @@ def arg(
     choices=None,
     help=None,
     metavar=None,
+    deprecated=False,
     **kwargs,
 ) -> Any:
     """
@@ -603,6 +605,7 @@ def arg(
                 metavar=metavar,
                 aliases=aliases,
                 positional=positional,
+                deprecated=deprecated,
             )
         ),
         default=default,

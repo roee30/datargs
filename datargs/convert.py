@@ -1,3 +1,5 @@
+from operator import attrgetter
+import dataclasses
 from argparse import ArgumentParser
 from textwrap import indent, dedent
 from typing import Tuple
@@ -40,23 +42,29 @@ def get_attrs(parser: ArgumentParser) -> Tuple[str, bool]:
     seen = set()
     is_argsclass = False
     result = ""
-    for action in parser._actions:
+    for action in sorted(parser._actions, key=lambda a: a.default is not None):
         first, *aliases = action.option_strings
         if first in seen or first == "-h":
             continue
         seen.add(first)
         name = to_var(first)
-        aliases = [f"aliases={aliases}"] if aliases else []
+        aliases = list(map(repr, aliases))
         try:
             typ = action.type.__name__
         except AttributeError:
             if action.type is not None:
                 raise
-            typ = action.type or "str"
+            if "StoreTrue" in str(action):
+                typ = "bool"
+            else:
+                typ = action.type or "str"
+        if action.nargs:
+            typ = f"list[{typ}]"
         relevant_pairs = {
             key: value
             for key, value in vars(action).items()
             if value is not None
+            and not isinstance(value, dataclasses._MISSING_TYPE)
             and key
             not in [
                 "required",
@@ -68,11 +76,13 @@ def get_attrs(parser: ArgumentParser) -> Tuple[str, bool]:
                 "type",
             ]
         }
+        if relevant_pairs.get("deprecated", None) is False:
+            relevant_pairs.pop("deprecated")
         rest = [f"{key}={value!r}" for key, value in relevant_pairs.items()]
         result += f"{name}: {typ}"
         if set(relevant_pairs) - {"default"}:
             is_argsclass = True
-            result += f" = arg({','.join(aliases + rest)})"
+            result += f" = arg({', '.join(aliases + rest)})"
         elif not action.required:
             default = vars(action).get("default", None)
             result += f" = {default!r}"
