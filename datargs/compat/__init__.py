@@ -1,30 +1,25 @@
 """
 Module for uniform treatment of dataclasses and attrs classes.
 """
+
 import dataclasses
 from abc import abstractmethod
 from dataclasses import dataclass
+from types import UnionType
 from typing import (
-    TypeVar,
-    Generic,
+    Callable,
     Mapping,
     Type,
     Union,
     get_type_hints,
     Optional,
-    cast,
+    cast, TYPE_CHECKING,
 )
 
 from datargs.meta import AbstractClassProperty
 
-try:
-    from types import UnionType
-except ImportError:
-    # In this case, create a type such that ``isinstance(value, typ)`` will always return False
-    UnionType = type("UniqueMarkerType", (), {})
-
-
-FieldType = TypeVar("FieldType")
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 
 @dataclass
@@ -33,7 +28,7 @@ class DatargsParams:
     sub_commands: dict = dataclasses.field(default_factory=dict)
     name: Optional[str] = None
 
-    def __post_init__(self, *args, **kwargs):
+    def __post_init__(self, *_, **__):
         for key, value in (
             ("required", True),
             ("dest", "__datargs_dest__"),
@@ -41,13 +36,13 @@ class DatargsParams:
             self.sub_commands.setdefault(key, value)
 
 
-class RecordField(Generic[FieldType]):
+class RecordField[FieldType: dataclasses.Field]:
     """
     Abstract base class for fields of dataclasses or attrs classes.
     """
 
     _field: FieldType
-    _cls: type
+    _cls: type | None
     NONE = object()
 
     def __init__(self, field, cls=None):
@@ -70,6 +65,8 @@ class RecordField(Generic[FieldType]):
 
     @property
     def default(self):
+        if (f := self._field.default_factory) is not dataclasses.MISSING:
+            return cast(Callable, f)()
         return self._field.default
 
     @property
@@ -105,7 +102,7 @@ class NotARecordClass(Exception):
     pass
 
 
-class RecordClass(Generic[FieldType]):
+class RecordClass[FieldType]:
     """
     Abstract base class for dataclasses or attrs classes.
     """
@@ -117,13 +114,13 @@ class RecordClass(Generic[FieldType]):
     field_wrapper_type: Type[RecordField] = AbstractClassProperty()
     _implementors = []
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **_):
         super().__init_subclass__()
         if not getattr(cls, "__abstractmethods__", None):
             cls._implementors.append(cls)
 
     def __init__(self, cls):
-        self.cls: type = cls
+        self.cls: type[DataclassInstance] = cls
 
     @property
     def datargs_params(self) -> DatargsParams:
@@ -187,7 +184,7 @@ class DataClass(RecordClass[dataclasses.Field]):
     fields_attribute = "__dataclass_fields__"
     field_wrapper_type = DataField
 
-    def fields_dict(self) -> Mapping[str, FieldType]:
+    def fields_dict(self) -> Mapping[str, dataclasses.Field]:
         fields = dataclasses.fields(self.cls)
         return {field.name: self.get_field(field, self.cls) for field in fields}
 
