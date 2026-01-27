@@ -151,7 +151,7 @@ and makes `aliases` behaves like in the original method. Use it to save precious
 
 
 ### `ArgumentParser` options
-You can pass `ArgumnetParser` keyword arguments to `argsclass`.
+You can pass `ArgumentParser` keyword arguments to `argsclass`.
 Description is its own parameter - the rest are passed as the `parser_params` parameter as a `dict`.
 
 When a class is used as a subcommand (see below), `parser_params` are passed to `add_parser`, including `aliases`.
